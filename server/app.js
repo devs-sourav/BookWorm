@@ -13,13 +13,7 @@ const routes = require("./routes");
 const app = express();
 
 // GLOBAL MIDDLEWARES:
-app.use(
-  cors({
-    origin: true, // or use '*' to allow all origins
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true, // true if you want to allow cookies to be sent with the request
-  })
-);
+app.options("*", cors());
 
 app.use(bodyParser.json()); // for parsing application/json
 app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/xwww-form-urlencoded
