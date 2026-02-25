@@ -319,7 +319,7 @@ exports.createOrderController = catchAsync(async (req, res, next) => {
       "title isbn price salePrice discountType discountValue author photos slug"
     );
 
-  const orderUrl = `${req.protocol}://localhost:5173/orders/${order._id}`;
+  const orderUrl = `${req.protocol}://bookwormm.netlify.app/orders/${order._id}`;
   const email = new Email({ email: order.email, name: order.name }, orderUrl);
   await email.sendInvoice(order);
 
@@ -488,7 +488,7 @@ exports.createOrderWithCouponController = catchAsync(async (req, res, next) => {
     )
     .select("-__v");
 
-  const orderUrl = `${req.protocol}://localhost:5173/orders/${order._id}`;
+  const orderUrl = `${req.protocol}://bookwormm.netlify.app/orders/${order._id}`;
   const email = new Email({ email: order.email, name: order.name }, orderUrl);
 
   // Pass the discount information to email template
@@ -717,7 +717,7 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
 
       // Fixed: Use proper frontend URL construction
       const frontendBaseUrl =
-        process.env.FRONTEND_BASE_URL || "http://localhost:5173";
+        process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
       const errorUrl = `${frontendBaseUrl}/payment/error?type=order_not_found&tran_id=${tran_id}`;
       console.log("🔗 Redirecting to error URL:", errorUrl);
       return res.redirect(errorUrl);
@@ -734,7 +734,7 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
     if (order.paymentStatus === "paid") {
       console.log("⚠️ Order already marked as paid, redirecting to success");
       const frontendBaseUrl =
-        process.env.FRONTEND_BASE_URL || "http://localhost:5173";
+        process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
       const successUrl = `${frontendBaseUrl}/order/payment/success/${order._id}`;
       console.log("🔗 Redirecting to success URL:", successUrl);
       return res.redirect(successUrl);
@@ -750,7 +750,7 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
       await order.save();
 
       const frontendBaseUrl =
-        process.env.FRONTEND_BASE_URL || "http://localhost:5173";
+        process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
       const failUrl = `${frontendBaseUrl}/order/payment/fail/${order._id}?error=amount_mismatch`;
       return res.redirect(failUrl);
     }
@@ -799,7 +799,7 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
       // Send payment confirmation email (don't let email failure stop the process)
       try {
         const frontendBaseUrl =
-          process.env.FRONTEND_BASE_URL || "http://localhost:5173";
+          process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
         const orderUrl = `${frontendBaseUrl}/orders/${order._id}`;
         const email = new Email(
           { email: order.email, name: order.name },
@@ -814,7 +814,7 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
 
       // MAIN FIX: Proper redirect without setTimeout
       const frontendBaseUrl =
-        process.env.FRONTEND_BASE_URL || "http://localhost:5173";
+        process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
       const successUrl = `${frontendBaseUrl}/order/payment/success/${order._id}`;
       console.log("🎊 Redirecting to success page:", successUrl);
 
@@ -829,7 +829,7 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
       await order.save();
 
       const frontendBaseUrl =
-        process.env.FRONTEND_BASE_URL || "http://localhost:5173";
+        process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
       const failUrl = `${frontendBaseUrl}/order/payment/fail/${order._id}?reason=invalid_validation`;
       return res.redirect(failUrl);
     }
@@ -846,7 +846,7 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
         await order.save();
 
         const frontendBaseUrl =
-          process.env.FRONTEND_BASE_URL || "http://localhost:5173";
+          process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
         const failUrl = `${frontendBaseUrl}/order/payment/fail/${order._id}?reason=validation_error`;
         return res.redirect(failUrl);
       }
@@ -856,7 +856,7 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
 
     // Fallback error redirect
     const frontendBaseUrl =
-      process.env.FRONTEND_BASE_URL || "http://localhost:5173";
+      process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
     const errorUrl = `${frontendBaseUrl}/payment/error?type=system_error&tran_id=${tran_id}`;
     return res.redirect(errorUrl);
   }
@@ -980,7 +980,7 @@ exports.handleSSLCommerzIPN = catchAsync(async (req, res, next) => {
         await order.save();
 
         // Send confirmation email
-        const orderUrl = `${req.protocol}://localhost:5173/orders/${order._id}`;
+        const orderUrl = `${req.protocol}://bookwormm.netlify.app/orders/${order._id}`;
         const email = new Email(
           { email: order.email, name: order.name },
           orderUrl
@@ -1221,7 +1221,7 @@ exports.updateOrderWithStockController = catchAsync(async (req, res, next) => {
     )
     .select("-__v");
 
-  const orderUrl = `${req.protocol}://localhost:5173/orders/${order._id}`;
+  const orderUrl = `${req.protocol}://bookwormm.netlify.app/orders/${order._id}`;
   const email = new Email({ email: order.email, name: order.name }, orderUrl);
 
   const { orderStatus } = req.body;
@@ -1360,7 +1360,7 @@ exports.updateOrderStatusController = catchAsync(async (req, res, next) => {
 
   if (!order) return next(new AppError("No order found with that ID!", 404));
 
-  const orderUrl = `${req.protocol}://localhost:5173/orders/${order._id}`;
+  const orderUrl = `${req.protocol}://bookwormm.netlify.app/orders/${order._id}`;
   const email = new Email({ email: order.email, name: order.name }, orderUrl);
 
   const { orderStatus } = req.body;
@@ -1446,7 +1446,7 @@ exports.cancelOrderController = catchAsync(async (req, res, next) => {
     .populate("products.product", "title isbn price salePrice stock");
 
   // Send cancellation email
-  const orderUrl = `${req.protocol}://localhost:5173/orders/${updatedOrder._id}`;
+  const orderUrl = `${req.protocol}://bookwormm.netlify.app/orders/${updatedOrder._id}`;
   const email = new Email(
     { email: updatedOrder.email, name: updatedOrder.name },
     orderUrl
