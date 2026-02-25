@@ -9,7 +9,7 @@ const CouponTicker = () => {
   useEffect(() => {
     const fetchCoupons = async () => {
       try {
-        const response = await fetch("https://bookwormm.netlify.app/api/v1/coupon");
+        const response = await fetch("https://bookworm-t3mi.onrender.com/api/v1/coupon");
         const data = await response.json();
         setCoupons(data.data.doc || []);
       } catch (err) {

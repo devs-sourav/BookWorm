@@ -54,7 +54,7 @@ const AddDiscount = () => {
   const [bulkForm] = Form.useForm();
 
   // API Base URL - adjust according to your backend
-  const API_BASE_URL = "https://bookwormm.netlify.app/api/v1";
+  const API_BASE_URL = "https://bookworm-t3mi.onrender.com/api/v1";
 
   useEffect(() => {
     fetchAllData();

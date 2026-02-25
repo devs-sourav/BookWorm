@@ -20,9 +20,9 @@ const filterlist = [
 ];
 
 const apiUrls = {
-  Featured: "https://bookwormm.netlify.app/api/v1/product",
-  "On Sale": "https://bookwormm.netlify.app/api/v1/product?sort=saleNumber",
-  "Most Viewed": "https://bookwormm.netlify.app/api/v1/product?sort=visitCount",
+  Featured: "https://bookworm-t3mi.onrender.com/api/v1/product",
+  "On Sale": "https://bookworm-t3mi.onrender.com/api/v1/product?sort=saleNumber",
+  "Most Viewed": "https://bookworm-t3mi.onrender.com/api/v1/product?sort=visitCount",
 };
 
 const SaleFeature = () => {

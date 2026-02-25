@@ -30,7 +30,7 @@ const UpperFooter = () => {
     const fetchCategories = async () => {
       try {
         const response = await axios.get(
-          "https://bookwormm.netlify.app/api/v1/category"
+          "https://bookworm-t3mi.onrender.com/api/v1/category"
         );
         setCategories(response.data.data.doc); // Assuming response.data contains the array of categories
       } catch (error) {

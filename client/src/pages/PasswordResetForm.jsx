@@ -88,7 +88,7 @@ const PasswordResetForm = () => {
 
     try {
       // API call to reset password
-      const response = await fetch(`https://bookwormm.netlify.app/api/v1/auth/resetPassword/${token}`, {
+      const response = await fetch(`https://bookworm-t3mi.onrender.com/api/v1/auth/resetPassword/${token}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

@@ -136,7 +136,7 @@ const AuthorDetailPage = () => {
   // Fetch author details with better error handling
   const fetchAuthorDetails = async () => {
     try {
-      const response = await fetch(`https://bookwormm.netlify.app/api/v1/author/${id}`, {
+      const response = await fetch(`https://bookworm-t3mi.onrender.com/api/v1/author/${id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -163,7 +163,7 @@ const AuthorDetailPage = () => {
   // Fetch author's products with better error handling
   const fetchAuthorProducts = async () => {
     try {
-      const response = await fetch(`https://bookwormm.netlify.app/api/v1/product/author/${id}`, {
+      const response = await fetch(`https://bookworm-t3mi.onrender.com/api/v1/product/author/${id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

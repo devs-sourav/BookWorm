@@ -17,7 +17,7 @@ const MobileSearch = ({ toggleDrawer }) => {
   const fetchProducts = async (query) => {
     setLoading(true);
     try {
-      const response = await axios.get(`https://bookwormm.netlify.app/api/v1/search`, {
+      const response = await axios.get(`https://bookworm-t3mi.onrender.com/api/v1/search`, {
         params: { query },
       });
 

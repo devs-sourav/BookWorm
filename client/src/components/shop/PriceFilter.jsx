@@ -26,7 +26,7 @@ const PriceFilter = () => {
     const fetchHighestPrice = async () => {
       try {
         const res = await axios.get(
-          "https://bookwormm.netlify.app/api/v1/product/stats/highest-price"
+          "https://bookworm-t3mi.onrender.com/api/v1/product/stats/highest-price"
         );
         if (res.data.success && res.data.highestPrice) {
           setMaxPrice(res.data.highestPrice+500);

@@ -83,7 +83,7 @@ const CheckoutForm = () => {
   const getCZone = async (id) => {
     try {
       const response = await axios.post(
-        `https://bookwormm.netlify.app/api/v1/pathaoLocation/city/${id}/zones`
+        `https://bookworm-t3mi.onrender.com/api/v1/pathaoLocation/city/${id}/zones`
       );
       setZoneList(response.data.data.data);
       if (response.data.data.data.length > 0) {
@@ -102,7 +102,7 @@ const CheckoutForm = () => {
     }
     try {
       const res = await axios.post(
-        `https://bookwormm.netlify.app/api/v1/pathaoLocation/zone/${id}/area-list`
+        `https://bookworm-t3mi.onrender.com/api/v1/pathaoLocation/zone/${id}/area-list`
       );
       setAreaList(res?.data?.data.data);
       if (res?.data?.data.data.length > 0) {
@@ -189,7 +189,7 @@ const CheckoutForm = () => {
 
     try {
       const response = await axios.get(
-        `https://bookwormm.netlify.app/api/v1/coupon/${formData.couponCode}`
+        `https://bookworm-t3mi.onrender.com/api/v1/coupon/${formData.couponCode}`
       );
 
       if (response.data.status === "success" && response.data.data.isValid) {
@@ -356,8 +356,8 @@ const CheckoutForm = () => {
       if (formData.paymentMethod === "sslcommerz") {
         // First create order, then initiate SSL Commerz
         const endpoint = couponData
-          ? "https://bookwormm.netlify.app/api/v1/order/withCoupon"
-          : "https://bookwormm.netlify.app/api/v1/order";
+          ? "https://bookworm-t3mi.onrender.com/api/v1/order/withCoupon"
+          : "https://bookworm-t3mi.onrender.com/api/v1/order";
 
         if (couponData) {
           orderData.coupon = formData.couponCode.trim();
@@ -375,7 +375,7 @@ const CheckoutForm = () => {
 
         // Initiate SSL Commerz payment
         const sslResponse = await axios.post(
-          "https://bookwormm.netlify.app/api/v1/order/payment/sslcommerz/initiate",
+          "https://bookworm-t3mi.onrender.com/api/v1/order/payment/sslcommerz/initiate",
           { orderId }
         );
 
@@ -387,8 +387,8 @@ const CheckoutForm = () => {
       } else if (formData.paymentMethod === "bkash") {
         // First create order, then initiate bKash
         const endpoint = couponData
-          ? "https://bookwormm.netlify.app/api/v1/order/withCoupon"
-          : "https://bookwormm.netlify.app/api/v1/order";
+          ? "https://bookworm-t3mi.onrender.com/api/v1/order/withCoupon"
+          : "https://bookworm-t3mi.onrender.com/api/v1/order";
 
         if (couponData) {
           orderData.coupon = formData.couponCode.trim();
@@ -400,7 +400,7 @@ const CheckoutForm = () => {
 
         // Initiate bKash payment
         const bkashResponse = await axios.post(
-          "https://bookwormm.netlify.app/api/v1/order/payment/bkash/initiate",
+          "https://bookworm-t3mi.onrender.com/api/v1/order/payment/bkash/initiate",
           { orderId, amount: totalAmount }
         );
 
@@ -412,8 +412,8 @@ const CheckoutForm = () => {
       } else {
         // Cash on delivery or other payment methods
         const endpoint = couponData
-          ? "https://bookwormm.netlify.app/api/v1/order/withCoupon"
-          : "https://bookwormm.netlify.app/api/v1/order";
+          ? "https://bookworm-t3mi.onrender.com/api/v1/order/withCoupon"
+          : "https://bookworm-t3mi.onrender.com/api/v1/order";
 
         if (couponData) {
           orderData.coupon = formData.couponCode.trim();

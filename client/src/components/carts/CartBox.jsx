@@ -46,7 +46,7 @@ const navigate = useNavigate();
       setStockErrors((prev) => ({ ...prev, [productId]: null }));
 
       const response = await fetch(
-        `https://bookwormm.netlify.app/api/v1/product/${productId}`
+        `https://bookworm-t3mi.onrender.com/api/v1/product/${productId}`
       );
       const data = await response.json();
 

@@ -152,7 +152,7 @@ const Navbar = () => {
       try {
         setLoading(true);
         const response = await axios.get(
-          "https://bookwormm.netlify.app/api/v1/category"
+          "https://bookworm-t3mi.onrender.com/api/v1/category"
         );
         setCategories(response.data.data.doc);
         setLoading(false);
@@ -206,7 +206,7 @@ const Navbar = () => {
   const setHandleClick = async (id) => {
     try {
       const response = await axios.get(
-        `https://bookwormm.netlify.app/api/v1/category/${id}`
+        `https://bookworm-t3mi.onrender.com/api/v1/category/${id}`
       );
       setData(response.data.data.doc);
       setCategoryActive(!categoryActive);

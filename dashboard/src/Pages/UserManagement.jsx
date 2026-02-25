@@ -50,7 +50,7 @@ const UserManagement = () => {
     admins: 0
   });
 
-  const API_BASE = 'https://bookwormm.netlify.app/api/v1/auth';
+  const API_BASE = 'https://bookworm-t3mi.onrender.com/api/v1/auth';
 
   useEffect(() => {
     fetchAllUsers();

@@ -10,7 +10,7 @@ import bg from "../assets/auth/Picture.png";
 import { toast } from 'react-toastify';
 
 // API configuration
-const API_BASE_URL = "https://bookwormm.netlify.app/api/v1";
+const API_BASE_URL = "https://bookworm-t3mi.onrender.com/api/v1";
 
 // Configure axios instance
 const apiClient = axios.create({

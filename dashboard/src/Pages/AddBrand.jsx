@@ -46,7 +46,7 @@ const BrandManagement = () => {
   const fetchBrands = async () => {
     setBrandsLoading(true);
     try {
-      const response = await fetch('https://bookwormm.netlify.app/api/v1/brand');
+      const response = await fetch('https://bookworm-t3mi.onrender.com/api/v1/brand');
       if (response.ok) {
         const result = await response.json();
         if (result.status === 'success' && result.data && result.data.doc) {
@@ -70,7 +70,7 @@ const BrandManagement = () => {
   const fetchCategories = async () => {
     setCategoriesLoading(true);
     try {
-      const response = await fetch('https://bookwormm.netlify.app/api/v1/category');
+      const response = await fetch('https://bookworm-t3mi.onrender.com/api/v1/category');
       if (response.ok) {
         const result = await response.json();
         if (result.status === 'success' && result.data && result.data.doc) {
@@ -93,7 +93,7 @@ const BrandManagement = () => {
   // Delete brand function
   const deleteBrand = async (brandId) => {
     try {
-      const response = await fetch(`https://bookwormm.netlify.app/api/v1/brand/${brandId}`, {
+      const response = await fetch(`https://bookworm-t3mi.onrender.com/api/v1/brand/${brandId}`, {
         method: 'DELETE',
       });
 
@@ -265,8 +265,8 @@ const BrandManagement = () => {
       }
 
       const url = editingBrand 
-        ? `https://bookwormm.netlify.app/api/v1/brand/${editingBrand._id}`
-        : 'https://bookwormm.netlify.app/api/v1/brand';
+        ? `https://bookworm-t3mi.onrender.com/api/v1/brand/${editingBrand._id}`
+        : 'https://bookworm-t3mi.onrender.com/api/v1/brand';
       
       const method = editingBrand ? 'PATCH' : 'POST';
 

@@ -34,7 +34,7 @@ const ForgotPassword = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://bookwormm.netlify.app/api/v1/auth/forgotPassword', {
+      const response = await fetch('https://bookworm-t3mi.onrender.com/api/v1/auth/forgotPassword', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -120,7 +120,7 @@ const AuthorsPage = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('https://bookwormm.netlify.app/api/v1/author');
+      const response = await fetch('https://bookworm-t3mi.onrender.com/api/v1/author');
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

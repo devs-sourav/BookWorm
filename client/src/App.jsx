@@ -43,7 +43,7 @@ const BrandShop = lazy(() => import("./components/shop/BrandShop"));
 const Subcategory = lazy(() => import("./components/shop/Subcategory"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const baseApi = "https://bookwormm.netlify.app/api/v1";
+const baseApi = "https://bookworm-t3mi.onrender.com/api/v1";
 
 // Loading Spinner
 const LoadingSpinner = () => (

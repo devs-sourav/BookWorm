@@ -55,7 +55,7 @@ const Search = () => {
     setLoading(true);
     setError("");
     try {
-      const response = await axios.get(`https://bookwormm.netlify.app/api/v1/search`, {
+      const response = await axios.get(`https://bookworm-t3mi.onrender.com/api/v1/search`, {
         params: {
           query,
           limit: 10,
@@ -84,7 +84,7 @@ const Search = () => {
   const fetchSuggestions = async (query) => {
     try {
       const response = await axios.get(
-        `https://bookwormm.netlify.app/api/v1/search/suggestions`,
+        `https://bookworm-t3mi.onrender.com/api/v1/search/suggestions`,
         {
           params: {
             query,
