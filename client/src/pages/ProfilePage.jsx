@@ -345,7 +345,7 @@ const ProfilePage = () => {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`http://localhost:8000/api/v1/auth/me/${id}`, {
+        const response = await fetch(`https://bookwormm.netlify.app/api/v1/auth/me/${id}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -449,7 +449,7 @@ const ProfilePage = () => {
         phone: editedUser.phone?.trim() || undefined
       });
 
-      const response = await fetch(`http://localhost:8000/api/v1/auth/update-profile/${id}`, {
+      const response = await fetch(`https://bookwormm.netlify.app/api/v1/auth/update-profile/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -574,7 +574,7 @@ const ProfilePage = () => {
       console.log('Uploading photo for user:', id);
 
       // Upload photo using the correct update-profile endpoint
-      const uploadResponse = await fetch(`http://localhost:8000/api/v1/auth/update-profile/${id}`, {
+      const uploadResponse = await fetch(`https://bookwormm.netlify.app/api/v1/auth/update-profile/${id}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`

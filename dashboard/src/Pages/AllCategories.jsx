@@ -73,7 +73,7 @@ const AllCategories = () => {
   const [editForm] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
 
-  const API_URL = "http://localhost:8000/api/v1/category";
+  const API_URL = "https://bookwormm.netlify.app/api/v1/category";
 
   // Modern color palette
   const categoryColors = [

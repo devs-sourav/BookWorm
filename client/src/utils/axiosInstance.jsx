@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:8000/api/v1", // Replace with your API base URL
+  baseURL: "https://bookwormm.netlify.app/api/v1", // Replace with your API base URL
   withCredentials: true, // Optional: if using cookies/sessions
   headers: {
     "Content-Type": "application/json",

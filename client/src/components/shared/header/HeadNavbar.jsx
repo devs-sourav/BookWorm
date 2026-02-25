@@ -107,7 +107,7 @@ export default function HeadNavbar() {
     const fetchCategories = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8000/api/v1/category"
+          "https://bookwormm.netlify.app/api/v1/category"
         );
         setCategories(response.data.data.doc);
         setLoading(false);
@@ -232,7 +232,7 @@ export default function HeadNavbar() {
   const setHandleClick = async (id) => {
     try {
       const response = await axios.get(
-        `http://localhost:8000/api/v1/category/${id}`
+        `https://bookwormm.netlify.app/api/v1/category/${id}`
       );
       setData(response.data.data.doc);
       setCategoryActive(!categoryActive);

@@ -64,7 +64,7 @@ const PaymentFailPage = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `http://localhost:8000/api/v1/order/${orderId}`
+        `https://bookwormm.netlify.app/api/v1/order/${orderId}`
       );
 
       if (!response.ok) {

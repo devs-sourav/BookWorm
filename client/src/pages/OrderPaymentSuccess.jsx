@@ -47,7 +47,7 @@ const OrderPaymentSuccess = () => {
       try {
         setPaymentUpdating(true);
         const updateResponse = await fetch(
-          `http://localhost:8000/api/v1/order/${orderId}/status`,
+          `https://bookwormm.netlify.app/api/v1/order/${orderId}/status`,
           {
             method: "PATCH",
             headers: {
@@ -72,7 +72,7 @@ const OrderPaymentSuccess = () => {
         await new Promise((resolve) => setTimeout(resolve, 1000));
 
         const orderResponse = await fetch(
-          `http://localhost:8000/api/v1/order/${orderId}`
+          `https://bookwormm.netlify.app/api/v1/order/${orderId}`
         );
 
         if (!orderResponse.ok) {

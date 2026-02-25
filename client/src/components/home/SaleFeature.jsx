@@ -20,9 +20,9 @@ const filterlist = [
 ];
 
 const apiUrls = {
-  Featured: "http://localhost:8000/api/v1/product",
-  "On Sale": "http://localhost:8000/api/v1/product?sort=saleNumber",
-  "Most Viewed": "http://localhost:8000/api/v1/product?sort=visitCount",
+  Featured: "https://bookwormm.netlify.app/api/v1/product",
+  "On Sale": "https://bookwormm.netlify.app/api/v1/product?sort=saleNumber",
+  "Most Viewed": "https://bookwormm.netlify.app/api/v1/product?sort=visitCount",
 };
 
 const SaleFeature = () => {

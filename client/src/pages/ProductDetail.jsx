@@ -34,7 +34,7 @@ import RightPartProduct from "../components/productdetails/RightPartProduct";
 import { Facebook, Instagram, Twitter } from "lucide-react";
 
 // Mock context and components - replace with your actual imports
-const ApiContext = React.createContext("http://localhost:8000/api/v1");
+const ApiContext = React.createContext("https://bookwormm.netlify.app/api/v1");
 
 const socialList = [
   { logo: () => <Facebook />, link: "https://facebook.com" },

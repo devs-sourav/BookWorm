@@ -562,16 +562,16 @@ exports.initiateSSLCommerzPayment = catchAsync(async (req, res, next) => {
     currency: "BDT",
     tran_id: tran_id,
     success_url: `${
-      process.env.BACKEND_BASE_URL || "http://localhost:8000"
+      process.env.BACKEND_BASE_URL || "https://bookwormm.netlify.app"
     }/api/v1/order/payment/success`,
     fail_url: `${
-      process.env.BACKEND_BASE_URL || "http://localhost:8000"
+      process.env.BACKEND_BASE_URL || "https://bookwormm.netlify.app"
     }/api/v1/order/payment/fail`,
     cancel_url: `${
-      process.env.BACKEND_BASE_URL || "http://localhost:8000"
+      process.env.BACKEND_BASE_URL || "https://bookwormm.netlify.app"
     }/api/v1/order/payment/cancel`,
     ipn_url: `${
-      process.env.BACKEND_BASE_URL || "http://localhost:8000"
+      process.env.BACKEND_BASE_URL || "https://bookwormm.netlify.app"
     }/api/v1/order/payment/ipn`,
 
     shipping_method: order.deliveryType === "on_demand" ? "Express" : "Regular",

@@ -112,11 +112,11 @@ const getIcon = (type) => {
     // Handle API calls for category, subcategory, brand
     let apiUrl;
     if (type === "category") {
-      apiUrl = `http://localhost:8000/api/v1/category/${lastSegment}`;
+      apiUrl = `https://bookwormm.netlify.app/api/v1/category/${lastSegment}`;
     } else if (type === "subcategory") {
-      apiUrl = `http://localhost:8000/api/v1/subcategory/${lastSegment}`;
+      apiUrl = `https://bookwormm.netlify.app/api/v1/subcategory/${lastSegment}`;
     } else if (type === "brand") {
-      apiUrl = `http://localhost:8000/api/v1/brand/${lastSegment}`;
+      apiUrl = `https://bookwormm.netlify.app/api/v1/brand/${lastSegment}`;
     }
 
     if (apiUrl) {

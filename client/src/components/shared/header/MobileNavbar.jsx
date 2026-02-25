@@ -59,7 +59,7 @@ const MobileNavbar = () => {
     const fetchCategories = async () => {
       try {
         const response = await axios.get(
-          "http://localhost:8000/api/v1/category"
+          "https://bookwormm.netlify.app/api/v1/category"
         );
         setCategories(response.data.data.doc); // Adjust this based on the structure of the API response
         setLoading(false);
@@ -132,7 +132,7 @@ const MobileNavbar = () => {
 
   const setHandleClick = async (id) => {
     const response = await axios.get(
-      `http://localhost:8000/api/v1/category/${id}`
+      `https://bookwormm.netlify.app/api/v1/category/${id}`
     );
     setData(response.data.data.doc);
     console.log(data);

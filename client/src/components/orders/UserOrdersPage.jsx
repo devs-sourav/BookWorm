@@ -59,7 +59,7 @@ const UserOrdersPage = () => {
       }
 
       const response = await fetch(
-        `http://localhost:8000/api/v1/order/user/${userId}`
+        `https://bookwormm.netlify.app/api/v1/order/user/${userId}`
       );
 
       if (!response.ok) {

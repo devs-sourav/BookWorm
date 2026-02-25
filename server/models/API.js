@@ -112,8 +112,8 @@ const demo = {
         name: "Mens World Panjabi",
         slug: "mens-world-panjabi",
         photos: [
-          "http://localhost:8000/uploads/products/products-1723699676198-681797626.png",
-          "http://localhost:8000/uploads/products/products-1723699676200-562826305.png",
+          "https://bookwormm.netlify.app/uploads/products/products-1723699676198-681797626.png",
+          "https://bookwormm.netlify.app/uploads/products/products-1723699676200-562826305.png",
         ],
         description: "product description",
         details: "This is the details",
@@ -135,8 +135,8 @@ const demo = {
         name: "Mens World Shirt",
         slug: "mens-world-shirt",
         photos: [
-          "http://localhost:8000/uploads/products/products-1723699676198-681797626.png",
-          "http://localhost:8000/uploads/products/products-1723699676200-562826305.png",
+          "https://bookwormm.netlify.app/uploads/products/products-1723699676198-681797626.png",
+          "https://bookwormm.netlify.app/uploads/products/products-1723699676200-562826305.png",
         ],
         description: "product description",
         details: "This is the details",

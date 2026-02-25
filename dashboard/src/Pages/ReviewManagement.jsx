@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Star, Trash2, ThumbsUp, Eye, User, Book, Search, AlertTriangle } from 'lucide-react';
 
 // API service for backend integration
-const API_BASE = 'http://localhost:8000/api/v1';
+const API_BASE = 'https://bookwormm.netlify.app/api/v1';
 
 const apiService = {
   // Get all products

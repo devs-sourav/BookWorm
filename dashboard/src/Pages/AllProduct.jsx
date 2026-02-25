@@ -50,7 +50,7 @@ const { Option } = Select;
 const { Search } = Input;
 
 // Constants
-const API_BASE_URL = "http://localhost:8000/api/v1";
+const API_BASE_URL = "https://bookwormm.netlify.app/api/v1";
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_IMAGES = 5;
 

@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 
 // API configuration
-const API_BASE_URL = "http://localhost:8000/api/v1/author";
+const API_BASE_URL = "https://bookwormm.netlify.app/api/v1/author";
 
 // API service functions
 const authorAPI = {
