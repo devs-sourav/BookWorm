@@ -17,6 +17,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "https://bookwormm.netlify.app",
+  "https://dashboardbookworm.netlify.app",
 ];
 
 app.use(
