@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { useDispatch } from "react-redux";
 
+const API_BASE = process.env.REACT_APP_API_BASE || "https://bookworm-t3mi.onrender.com";
+
 const OrderPaymentSuccess = () => {
   const [orderData, setOrderData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +38,31 @@ const OrderPaymentSuccess = () => {
   const { orderId } = useParams();
 
   useEffect(() => {
+    const pollOrderStatus = async (attempts = 20, interval = 3000) => {
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const orderResponse = await fetch(`${API_BASE}/api/v1/order/${orderId}`);
+          if (orderResponse.ok) {
+            const orderResult = await orderResponse.json();
+            const doc = orderResult.data?.doc || orderResult.data?.order || orderResult;
+            if (doc) setOrderData(doc);
+            if (doc?.paymentStatus === "paid") {
+              setUpdateSuccess(true);
+              setPaymentUpdating(false);
+              setLoading(false);
+              return doc;
+            }
+          }
+        } catch (pollErr) {
+          // ignore and retry
+        }
+        // wait
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((r) => setTimeout(r, interval));
+      }
+      return null;
+    };
+
     const updatePaymentAndFetchOrder = async () => {
       if (!orderId) {
         setError("Order ID not found in URL");
@@ -46,42 +73,51 @@ const OrderPaymentSuccess = () => {
 
       try {
         setPaymentUpdating(true);
-        const updateResponse = await fetch(
-          `https://bookworm-t3mi.onrender.com/api/v1/order/${orderId}/status`,
-          {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              paymentStatus: "paid",
-              orderStatus: "confirmed",
-            }),
-          }
-        );
 
-        if (!updateResponse.ok) {
-          const errorData = await updateResponse.json();
-          throw new Error(
-            errorData.message || "Failed to update payment status"
+        // Try to PATCH the order status (best-effort). If it fails, we'll fallback to polling the order.
+        try {
+          const updateResponse = await fetch(
+            `${API_BASE}/api/v1/order/${orderId}/status`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                paymentStatus: "paid",
+                orderStatus: "confirmed",
+              }),
+            }
           );
+
+          if (updateResponse.ok) {
+            setUpdateSuccess(true);
+            setPaymentUpdating(false);
+            // small delay to let backend finalize
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            const orderResponse = await fetch(`${API_BASE}/api/v1/order/${orderId}`);
+            if (orderResponse.ok) {
+              const orderResult = await orderResponse.json();
+              setOrderData(orderResult.data.doc || orderResult.data?.order);
+              setPaymentUpdating(false);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (errPatch) {
+          // swallow and fallback to polling below
         }
 
-        setUpdateSuccess(true);
-        setPaymentUpdating(false);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        const orderResponse = await fetch(
-          `https://bookworm-t3mi.onrender.com/api/v1/order/${orderId}`
-        );
-
-        if (!orderResponse.ok) {
-          const errorData = await orderResponse.json();
-          throw new Error(errorData.message || "Failed to fetch order details");
+        // Fallback: poll the order GET until paymentStatus becomes 'paid' or timeout
+        const polled = await pollOrderStatus(20, 3000); // ~60s
+        if (!polled) {
+          setError(
+            "Payment confirmation is taking longer than expected. Please check your order history or contact support."
+          );
+          setPaymentUpdating(false);
+          setLoading(false);
         }
-
-        const orderResult = await orderResponse.json();
-        setOrderData(orderResult.data.doc);
       } catch (err) {
         setError(err.message);
         setPaymentUpdating(false);
