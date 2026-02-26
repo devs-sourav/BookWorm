@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { useParams,Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { resetCart } from "../redux/slices/cartSlices";
 
 import {
@@ -34,35 +34,11 @@ const OrderPaymentSuccess = () => {
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const invoiceRef = useRef();
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
 
   const { orderId } = useParams();
 
   useEffect(() => {
-    const pollOrderStatus = async (attempts = 5, interval = 1000) => {
-      // quick polling fallback, usually not needed if PATCH returns data
-      for (let i = 0; i < attempts; i++) {
-        try {
-          const orderResponse = await axios.get(`${API_BASE}/api/v1/order/${orderId}`);
-          const orderResult = orderResponse.data;
-          const doc = orderResult.data?.doc || orderResult.data?.order || orderResult;
-          if (doc) setOrderData(doc);
-          if (doc?.paymentStatus === "paid") {
-            setUpdateSuccess(true);
-            setPaymentUpdating(false);
-            setLoading(false);
-            return doc;
-          }
-        } catch (pollErr) {
-          // ignore and retry
-        }
-        // wait before next attempt
-        // eslint-disable-next-line no-await-in-loop
-        await new Promise((r) => setTimeout(r, interval));
-      }
-      return null;
-    };
-
     const updatePaymentAndFetchOrder = async () => {
       if (!orderId) {
         setError("Order ID not found in URL");
@@ -74,59 +50,48 @@ const OrderPaymentSuccess = () => {
       try {
         setPaymentUpdating(true);
 
-        // Try to PATCH the order status (best-effort). If it fails, we'll fallback to polling the order.
+        // Step 1: Update payment status (best-effort, swallow errors)
         try {
-          const updateResponse = await axios.patch(
-            `${API_BASE}/api/v1/order/${orderId}/status`,
-            {
-              paymentStatus: "paid",
-              orderStatus: "confirmed",
-            }
-          );
-
-          const patchResult = updateResponse.data;
-          // backend may return the updated order in the response
-          const patchedDoc =
-            patchResult.data?.doc ||
-            patchResult.data?.order ||
-            patchResult;
-          if (patchedDoc) {
-            setOrderData(patchedDoc);
-          }
-
+          await axios.patch(`${API_BASE}/api/v1/order/${orderId}/status`, {
+            paymentStatus: "paid",
+            orderStatus: "confirmed",
+          });
           setUpdateSuccess(true);
-          setPaymentUpdating(false);
-          setLoading(false);
-          // if we already have data and status is paid, we're done
-          if (patchedDoc?.paymentStatus === "paid") {
-            return;
-          }
-          // otherwise fall through to the polling fallback
         } catch (errPatch) {
-          // swallow and fallback to polling below
+          // swallow patch error — still fetch order below
+          console.warn("PATCH failed, continuing to fetch order:", errPatch.message);
         }
 
-        // Fallback: poll the order GET until paymentStatus becomes 'paid' or timeout
-        // limit retries to keep user waiting short
-        const polled = await pollOrderStatus(5, 1000); // max 5s now
-        if (!polled) {
-          setError(
-            "Payment confirmation is taking longer than expected. Please check your order history or contact support."
-          );
-          setPaymentUpdating(false);
+        setPaymentUpdating(false);
+
+        // Step 2: Always fetch the full populated order from GET endpoint
+        // This ensures we always get the complete order with all nested fields
+        // (products, user, area, zone, city, etc.)
+        const orderResponse = await axios.get(`${API_BASE}/api/v1/order/${orderId}`);
+        const orderResult = orderResponse.data;
+        const doc =
+          orderResult.data?.doc ||
+          orderResult.data?.order ||
+          orderResult.data ||
+          orderResult;
+
+        if (doc && (doc._id || doc.formattedOrderNumber)) {
+          setOrderData(doc);
+          setLoading(false);
+        } else {
+          setError("Could not load order details. Please check your order history.");
           setLoading(false);
         }
       } catch (err) {
-        setError(err.message);
+        setError(err.message || "Something went wrong. Please contact support.");
         setPaymentUpdating(false);
-        console.error("Order processing error:", err);
-      } finally {
         setLoading(false);
+        console.error("Order processing error:", err);
       }
     };
 
     updatePaymentAndFetchOrder();
-    dispatch(resetCart())
+    dispatch(resetCart());
   }, [orderId]);
 
   const copyOrderNumber = () => {
@@ -157,7 +122,6 @@ const OrderPaymentSuccess = () => {
   const generateInvoicePDF = async () => {
     setDownloadingInvoice(true);
 
-    // Create a new window with the invoice content
     const printWindow = window.open("", "_blank");
     const invoiceHTML = `
       <!DOCTYPE html>
@@ -191,12 +155,8 @@ const OrderPaymentSuccess = () => {
           
           <div class="section">
             <div class="section-title">Order Information</div>
-            <div class="info-row"><span>Order Number:</span><span>${
-              orderData.formattedOrderNumber
-            }</span></div>
-            <div class="info-row"><span>Order Date:</span><span>${formatDateTime(
-              orderData.createdAt
-            )}</span></div>
+            <div class="info-row"><span>Order Number:</span><span>${orderData.formattedOrderNumber}</span></div>
+            <div class="info-row"><span>Order Date:</span><span>${formatDateTime(orderData.createdAt)}</span></div>
             <div class="info-row"><span>Payment Method:</span><span>SSLCommerz</span></div>
             <div class="info-row">
               <span>Order Status:</span>
@@ -210,20 +170,10 @@ const OrderPaymentSuccess = () => {
 
           <div class="section">
             <div class="section-title">Customer Information</div>
-            <div class="info-row"><span>Name:</span><span>${
-              orderData.name
-            }</span></div>
-            <div class="info-row"><span>Email:</span><span>${
-              orderData.email
-            }</span></div>
-            <div class="info-row"><span>Phone:</span><span>${
-              orderData.phone
-            }</span></div>
-            <div class="info-row"><span>Address:</span><span>${
-              orderData.streetAddress
-            }, ${orderData.area?.areaName}, ${orderData.zone?.zoneName}, ${
-      orderData.city?.cityName
-    }</span></div>
+            <div class="info-row"><span>Name:</span><span>${orderData.name}</span></div>
+            <div class="info-row"><span>Email:</span><span>${orderData.email}</span></div>
+            <div class="info-row"><span>Phone:</span><span>${orderData.phone}</span></div>
+            <div class="info-row"><span>Address:</span><span>${orderData.streetAddress}, ${orderData.area?.areaName}, ${orderData.zone?.zoneName}, ${orderData.city?.cityName}</span></div>
           </div>
 
           <div class="section">
@@ -259,15 +209,9 @@ const OrderPaymentSuccess = () => {
           </div>
 
           <div class="total-section">
-            <div class="total-row"><span>Subtotal:</span><span>৳${
-              orderData.subtotal
-            }</span></div>
-            <div class="total-row"><span>Shipping:</span><span>৳${
-              orderData.shippingCost
-            }</span></div>
-            <div class="total-row grand-total"><span>Total:</span><span>৳${
-              orderData.totalCost
-            }</span></div>
+            <div class="total-row"><span>Subtotal:</span><span>৳${orderData.subtotal}</span></div>
+            <div class="total-row"><span>Shipping:</span><span>৳${orderData.shippingCost}</span></div>
+            <div class="total-row grand-total"><span>Total:</span><span>৳${orderData.totalCost}</span></div>
           </div>
 
           <div style="margin-top: 30px; text-align: center; color: #6b7280; font-size: 12px;">
@@ -417,11 +361,6 @@ const OrderPaymentSuccess = () => {
                 </>
               )}
             </button>
-
-            {/* <button className="inline-flex items-center px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl">
-              <Truck className="h-5 w-5 mr-2" />
-              Track Order
-            </button> */}
           </div>
         </div>
 
@@ -725,14 +664,13 @@ const OrderPaymentSuccess = () => {
                 Quick Actions
               </h3>
               <div className="space-y-3">
-                <Link to={"/shop"} className="w-full flex items-center justify-center px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-gray-700 font-medium">
+                <Link
+                  to={"/shop"}
+                  className="w-full flex items-center justify-center px-4 py-3 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-gray-700 font-medium"
+                >
                   <ArrowRight className="h-4 w-4 mr-2" />
                   Continue Shopping
                 </Link>
-                {/* <button className="w-full flex items-center justify-center px-4 py-3 bg-blue-100 hover:bg-blue-200 rounded-xl transition-colors text-blue-700 font-medium">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View Order History
-                </button> */}
               </div>
             </div>
           </div>
