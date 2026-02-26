@@ -1,31 +1,44 @@
 const path = require("path");
 const express = require("express");
 const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
 const monogoSanitize = require("express-mongo-sanitize");
 const bodyParser = require("body-parser");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
-
 const globalErrorMiddleware = require("./middlewares/globalErrorMiddleware");
 const routes = require("./routes");
 
 const app = express();
 
-// GLOBAL MIDDLEWARES:
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "https://bookwormm.netlify.app",
   "https://dashboardbookworm.netlify.app",
+  "https://sandbox.sslcommerz.com",
+  "https://securepay.sslcommerz.com",
+  "https://www.sslcommerz.com",
 ];
 
+// ✅ STEP 1: Body parsers FIRST — before anything else
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// ✅ STEP 2: Payment gateway CORS bypass — before global cors()
+app.use("/api/v1/order/payment", (req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  next();
+});
+
+// ✅ STEP 3: Global CORS
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // allow Postman or server-to-server
+      if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) {
-        callback(null, true);
+        return callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
       }
@@ -34,24 +47,19 @@ app.use(
   })
 );
 
-app.use(bodyParser.json()); // for parsing application/json
-app.use(bodyParser.urlencoded({ extended: true })); // for parsing application/xwww-form-urlencoded
+// ✅ STEP 4: Static files
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads"))); // Serving static files
-app.use(helmet()); // Set security HTTP headers
-
-// const limiter = rateLimit({
-//   max: 100,
-//   windowMs: 60 * 60 * 1000,
-//   message: "Too many requests from this IP, Please try again after an hour!",
-// });
-
-// app.use("/api", limiter); // Limit request from same IP
+// ✅ STEP 5: Security (after payment routes bypass)
+app.use(helmet());
 app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
-app.use(monogoSanitize()); // Data sanitization against NoSQL query injection --> "email": { "$gt": "" }
+app.use(monogoSanitize());
 
+// ✅ STEP 6: Routes
 app.use(routes);
+
+// ✅ STEP 7: Global error handler
 app.use(globalErrorMiddleware);
 
 module.exports = app;
