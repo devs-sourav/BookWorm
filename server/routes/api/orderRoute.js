@@ -13,44 +13,40 @@ const {
   handleSSLCommerzSuccess,
   handleSSLCommerzFail,
   handleSSLCommerzCancel,
-  handleSSLCommerzIPN, // NEW: IPN handler
-  validateSSLCommerzTransaction, // NEW: Manual validation
+  handleSSLCommerzIPN,
+  validateSSLCommerzTransaction,
 } = require("../../controllers/orderController");
 
 const router = express.Router();
 
-// User-specific orders - should come before /:id route
+// ─── User-specific orders ─────────────────────────────────────────────────────
 router.get("/user/:userId", getUserOrdersController);
 
-// SSL Commerz payment routes
+// ─── SSL Commerz: Initiate payment ───────────────────────────────────────────
 router.post("/payment/sslcommerz/initiate", initiateSSLCommerzPayment);
 
-// handle both POST (preferred) and GET (some gateways redirect with query params)
+// ─── SSL Commerz: Success callback (POST from gateway + GET fallback) ─────────
 router.post("/payment/success", handleSSLCommerzSuccess);
-router.get("/payment/success", (req, res, next) => {
-  // copy query parameters into body so handler can use same logic
-  req.body = { ...(req.query || {}) };
-  // call the handler but don't await - it handles all errors internally
-  handleSSLCommerzSuccess(req, res, next);
-});
+router.get("/payment/success", handleSSLCommerzSuccess);
 
+// ─── SSL Commerz: Fail callback ───────────────────────────────────────────────
 router.post("/payment/fail", handleSSLCommerzFail);
-router.get("/payment/fail", (req, res, next) => {
-  req.body = { ...(req.query || {}) };
-  handleSSLCommerzFail(req, res, next);
-});
+router.get("/payment/fail", handleSSLCommerzFail);
 
+// ─── SSL Commerz: Cancel callback ────────────────────────────────────────────
 router.post("/payment/cancel", handleSSLCommerzCancel);
-router.get("/payment/cancel", (req, res, next) => {
-  req.body = { ...(req.query || {}) };
-  handleSSLCommerzCancel(req, res, next);
-});
-router.post("/payment/sslcommerz/ipn", handleSSLCommerzIPN); // NEW: IPN endpoint
-router.post("/payment/validate", validateSSLCommerzTransaction); // NEW: Manual validation
+router.get("/payment/cancel", handleSSLCommerzCancel);
 
+// ─── SSL Commerz: IPN (Instant Payment Notification) ─────────────────────────
+router.post("/payment/sslcommerz/ipn", handleSSLCommerzIPN);
+
+// ─── SSL Commerz: Manual transaction validation ───────────────────────────────
+router.post("/payment/validate", validateSSLCommerzTransaction);
+
+// ─── Order with coupon ────────────────────────────────────────────────────────
 router.post("/withCoupon", createOrderWithCouponController);
 
-// Basic CRUD operations
+// ─── Basic CRUD ───────────────────────────────────────────────────────────────
 router
   .route("/")
   .post(createOrderController)
@@ -61,12 +57,10 @@ router
   .get(getOrderController)
   .delete(deleteOrderController);
 
-// Order update routes - separated for different use cases
-router.patch("/:id/status", updateOrderStatusController); // For simple status updates
-router.patch("/:id/with-stock", updateOrderWithStockController); // For updates that affect products/stock
-router.patch("/:id", updateOrderStatusController); // Default update route (safe updates only)
-
-// Cancel order and restore stock
-router.patch("/:id/cancel", cancelOrderController);
+// ─── Order update routes ──────────────────────────────────────────────────────
+router.patch("/:id/status", updateOrderStatusController);       // status-only updates
+router.patch("/:id/with-stock", updateOrderWithStockController); // updates that affect stock
+router.patch("/:id/cancel", cancelOrderController);              // cancel + restore stock
+router.patch("/:id", updateOrderStatusController);               // default safe update
 
 module.exports = router;

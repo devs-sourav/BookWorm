@@ -711,262 +711,254 @@ exports.initiateSSLCommerzPayment = catchAsync(async (req, res, next) => {
 
 // FIXED SSL Commerz Success Callback with validation - NO catchAsync!
 exports.handleSSLCommerzSuccess = async (req, res) => {
-  // merge query + body so both GET and POST work (query params win on duplicates)
+  // SSL Commerz sends POST with form-encoded body OR GET with query params
+  // Merge both — query params take precedence
   const data = { ...(req.body || {}), ...(req.query || {}) };
 
   console.log("🎉 SSL Success callback invoked:", {
     method: req.method,
-    data,
+    body: req.body,
+    query: req.query,
+    merged: data,
   });
 
   const frontendBaseUrl =
     process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
 
-  // ─── Helper: safe redirect that never throws ───────────────
+  // ALWAYS redirect, NEVER send JSON from this handler
   const safeRedirect = (url) => {
     console.log("↩️  Redirecting to:", url);
-    return res.redirect(url);
+    if (res.headersSent) {
+      console.warn("⚠️  Headers already sent, cannot redirect");
+      return;
+    }
+    return res.redirect(302, url);
   };
 
-  const { tran_id, val_id, amount, currency, bank_tran_id,
-          card_type, card_no, card_issuer, card_brand } = data;
-
-  // ── 1. Validate required incoming params ───────────────────
-  if (!tran_id || !val_id) {
-    console.warn("⚠️  Missing tran_id or val_id", { tran_id, val_id });
-    return safeRedirect(`${frontendBaseUrl}/payment/error?type=missing_params`);
-  }
-
-  // ── 2. Find the order ──────────────────────────────────────
-  let order;
   try {
-    order = await Order.findOne({ sslcommerzTransactionId: tran_id })
-      .populate("user", "name email")
-      .populate("products.product", "title author");
-  } catch (dbErr) {
-    console.error("💥 DB error finding order:", dbErr);
-    return safeRedirect(`${frontendBaseUrl}/payment/error?type=db_error&tran_id=${tran_id}`);
-  }
+    const { tran_id, val_id, amount, currency, bank_tran_id,
+            card_type, card_no, card_issuer, card_brand } = data;
 
-  if (!order) {
-    console.error("❌ Order not found for tran_id:", tran_id);
-    return safeRedirect(
-      `${frontendBaseUrl}/payment/error?type=order_not_found&tran_id=${tran_id}`
-    );
-  }
+    console.log("📋 Extracted params:", { tran_id, val_id, amount });
 
-  console.log("📦 Order found:", {
-    orderNumber: order.orderNumber,
-    orderId: order._id,
-    currentPaymentStatus: order.paymentStatus,
-    totalCost: order.totalCost,
-  });
+    // ── 1. Validate required incoming params ──────────────────
+    if (!tran_id || !val_id) {
+      console.warn("⚠️  Missing tran_id or val_id:", { tran_id, val_id });
+      return safeRedirect(`${frontendBaseUrl}/payment/error?type=missing_params`);
+    }
 
-  // ── 3. Idempotency — already paid ─────────────────────────
-  if (order.paymentStatus === "paid") {
-    console.log("✅ Already paid — redirecting to success");
-    return safeRedirect(`${frontendBaseUrl}/order/payment/success/${order._id}`);
-  }
-
-  // ── 4. FIX: Amount validation with tolerance ───────────────
-  //    parseFloat can produce tiny floating-point differences.
-  //    Use Math.round to compare in integer taka (BDT has no sub-unit in SSL).
-  const receivedAmount = Math.round(parseFloat(amount || "0"));
-  const expectedAmount = Math.round(parseFloat(order.totalCost || "0"));
-
-  console.log("💰 Amount check:", { receivedAmount, expectedAmount });
-
-  if (receivedAmount !== expectedAmount) {
-    console.error("❌ Amount mismatch — received:", receivedAmount, "expected:", expectedAmount);
+    // ── 2. Find the order ─────────────────────────────────────
+    let order;
     try {
-      order.paymentStatus = "failed";
-      order.orderStatus  = "payment_failed";
-      order.sslcommerzData = {
-        ...(order.sslcommerzData || {}),   // FIX: guard against null/undefined
-        amountMismatch: { receivedAmount, expectedAmount },
-        failedAt: new Date(),
-      };
-      await order.save();
-    } catch (saveErr) {
-      console.error("💥 Error saving mismatch status:", saveErr);
-    }
-    return safeRedirect(
-      `${frontendBaseUrl}/order/payment/fail/${order._id}?error=amount_mismatch`
-    );
-  }
-
-  // ── 5. Validate with SSL Commerz ───────────────────────────
-  let validation;
-  try {
-    const is_live = process.env.NODE_ENV === "production";
-    const storeId       = process.env.SSLCOMMERZ_STORE_ID;
-    const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD;
-
-    if (!storeId || !storePassword) {
-      throw new Error("SSL Commerz credentials not configured in environment");
+      order = await Order.findOne({ sslcommerzTransactionId: tran_id })
+        .populate("user", "name email")
+        .populate("products.product", "title author");
+    } catch (dbErr) {
+      console.error("💥 DB error finding order:", dbErr);
+      return safeRedirect(`${frontendBaseUrl}/payment/error?type=db_error&tran_id=${encodeURIComponent(tran_id)}`);
     }
 
-    const sslcz = new SSLCommerzPayment(storeId, storePassword, is_live);
-    console.log("🔍 Validating transaction val_id:", val_id);
-    validation = await sslcz.validate({ val_id });
-    console.log("📋 Validation status:", validation?.status);
+    if (!order) {
+      console.error("❌ Order not found for tran_id:", tran_id);
+      return safeRedirect(
+        `${frontendBaseUrl}/payment/error?type=order_not_found&tran_id=${encodeURIComponent(tran_id)}`
+      );
+    }
 
-  } catch (validationErr) {
-    console.error("💥 SSL Commerz validation threw:", validationErr.message);
+    console.log("📦 Order found:", {
+      orderNumber: order.orderNumber,
+      orderId: order._id,
+      currentPaymentStatus: order.paymentStatus,
+      totalCost: order.totalCost,
+    });
 
-    // Mark the order as failed and redirect — do NOT let this bubble to Express
+    // ── 3. Idempotency — already paid ─────────────────────────
+    if (order.paymentStatus === "paid") {
+      console.log("✅ Already paid — redirecting to success");
+      return safeRedirect(`${frontendBaseUrl}/order/payment/success/${order._id}`);
+    }
+
+    // ── 4. Amount validation ───────────────────────────────────
+    const receivedAmount = Math.round(parseFloat(amount || "0"));
+    const expectedAmount = Math.round(parseFloat(order.totalCost || "0"));
+
+    console.log("💰 Amount check:", { receivedAmount, expectedAmount });
+
+    if (receivedAmount !== expectedAmount) {
+      console.error("❌ Amount mismatch:", { receivedAmount, expectedAmount });
+      try {
+        order.paymentStatus = "failed";
+        order.orderStatus = "payment_failed";
+        order.sslcommerzData = {
+          ...(order.sslcommerzData ? order.sslcommerzData.toObject?.() || order.sslcommerzData : {}),
+          amountMismatch: { receivedAmount, expectedAmount },
+          failedAt: new Date(),
+        };
+        await order.save();
+      } catch (saveErr) {
+        console.error("💥 Error saving mismatch status:", saveErr);
+      }
+      return safeRedirect(
+        `${frontendBaseUrl}/order/payment/fail/${order._id}?error=amount_mismatch`
+      );
+    }
+
+    // ── 5. Validate with SSL Commerz ───────────────────────────
+    let validation;
     try {
-      order.paymentStatus = "failed";
-      order.orderStatus  = "payment_failed";
-      order.sslcommerzData = {
-        ...(order.sslcommerzData || {}),
-        validationError: validationErr.message,
-        failedAt: new Date(),
-      };
-      await order.save();
-    } catch (saveErr) {
-      console.error("💥 Error saving validation-error status:", saveErr);
+      const is_live = process.env.NODE_ENV === "production";
+      const storeId = process.env.SSLCOMMERZ_STORE_ID;
+      const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD;
+
+      if (!storeId || !storePassword) {
+        throw new Error("SSL Commerz credentials missing from environment");
+      }
+
+      const sslcz = new SSLCommerzPayment(storeId, storePassword, is_live);
+      console.log("🔍 Validating transaction val_id:", val_id);
+      validation = await sslcz.validate({ val_id });
+      console.log("📋 Validation result:", JSON.stringify(validation));
+    } catch (validationErr) {
+      console.error("💥 SSL Commerz validation error:", validationErr.message);
+      try {
+        order.paymentStatus = "failed";
+        order.orderStatus = "payment_failed";
+        order.sslcommerzData = {
+          ...(order.sslcommerzData ? order.sslcommerzData.toObject?.() || order.sslcommerzData : {}),
+          validationError: validationErr.message,
+          failedAt: new Date(),
+        };
+        await order.save();
+      } catch (saveErr) {
+        console.error("💥 Error saving validation-error status:", saveErr);
+      }
+      return safeRedirect(
+        `${frontendBaseUrl}/order/payment/fail/${order._id}?reason=validation_error`
+      );
     }
 
-    return safeRedirect(
-      `${frontendBaseUrl}/order/payment/fail/${order._id}?reason=validation_error`
-    );
-  }
+    // ── 6. Act on validation result ────────────────────────────
+    if (validation?.status === "VALID" || validation?.status === "VALIDATED") {
+      try {
+        order.paymentStatus = "paid";
+        order.orderStatus = "confirmed";
+        order.paidAt = new Date();
+        order.sslcommerzData = {
+          ...(order.sslcommerzData ? order.sslcommerzData.toObject?.() || order.sslcommerzData : {}),
+          validationResponse: data,
+          validationData: validation,
+          paymentDetails: {
+            cardType: card_type,
+            cardNo: card_no ? card_no.slice(-4) : null,
+            cardIssuer: card_issuer,
+            cardBrand: card_brand,
+            bankTranId: bank_tran_id,
+            paidAmount: receivedAmount,
+            currency: currency,
+            paidAt: new Date(),
+          },
+        };
+        await order.save();
+        console.log("💾 Order saved as paid:", order.orderNumber);
+      } catch (saveErr) {
+        console.error("💥 Error saving paid status:", saveErr.message);
+        // Payment was valid — still redirect to success; IPN will reconcile
+      }
 
-  // ── 6. Act on validation result ────────────────────────────
-  if (validation?.status === "VALID" || validation?.status === "VALIDATED") {
-    try {
-      order.paymentStatus = "paid";
-      order.orderStatus  = "confirmed";
-      order.paidAt       = new Date();
-      order.sslcommerzData = {
-        ...(order.sslcommerzData || {}),    // FIX: guard against null
-        validationResponse: data,
-        validationData: validation,
-        paymentDetails: {
-          cardType:    card_type,
-          cardNo:      card_no ? card_no.slice(-4) : null,
-          cardIssuer:  card_issuer,
-          cardBrand:   card_brand,
-          bankTranId:  bank_tran_id,
-          paidAmount:  receivedAmount,
-          currency:    currency,
-          paidAt:      new Date(),
-        },
-      };
-      await order.save();
-      console.log("💾 Order saved as paid:", order.orderNumber);
-    } catch (saveErr) {
-      console.error("💥 Error saving paid status:", saveErr);
-      // Even if save fails, the payment was valid — redirect to success
-      // so the customer isn't left stranded. IPN will reconcile later.
+      // Fire-and-forget confirmation email
+      try {
+        const orderUrl = `${frontendBaseUrl}/orders/${order._id}`;
+        const email = new Email({ email: order.email, name: order.name }, orderUrl);
+        email.sendInvoice(order).catch((emailErr) => {
+          console.error("📧 Email failed (non-fatal):", emailErr.message);
+        });
+      } catch (emailErr) {
+        console.error("📧 Email setup failed (non-fatal):", emailErr.message);
+      }
+
+      return safeRedirect(`${frontendBaseUrl}/order/payment/success/${order._id}`);
+
+    } else {
+      console.error("❌ Validation status not VALID:", validation?.status, JSON.stringify(validation));
+      try {
+        order.paymentStatus = "failed";
+        order.orderStatus = "payment_failed";
+        order.sslcommerzData = {
+          ...(order.sslcommerzData ? order.sslcommerzData.toObject?.() || order.sslcommerzData : {}),
+          validationResponse: data,
+          invalidStatus: validation?.status,
+          failedAt: new Date(),
+        };
+        await order.save();
+      } catch (saveErr) {
+        console.error("💥 Error saving invalid-validation status:", saveErr);
+      }
+      return safeRedirect(
+        `${frontendBaseUrl}/order/payment/fail/${order._id}?reason=invalid_validation`
+      );
     }
 
-    // Fire-and-forget confirmation email
-    try {
-      const orderUrl = `${frontendBaseUrl}/orders/${order._id}`;
-      const email = new Email({ email: order.email, name: order.name }, orderUrl);
-      await email.sendInvoice(order);
-      console.log("📧 Confirmation email sent");
-    } catch (emailErr) {
-      console.error("📧 Email failed (non-fatal):", emailErr.message);
-    }
-
-    return safeRedirect(`${frontendBaseUrl}/order/payment/success/${order._id}`);
-
-  } else {
-    // INVALID / FAILED validation status
-    console.error("❌ Validation status not VALID:", validation?.status);
-    try {
-      order.paymentStatus = "failed";
-      order.orderStatus  = "payment_failed";
-      order.sslcommerzData = {
-        ...(order.sslcommerzData || {}),
-        validationResponse: data,
-        invalidStatus: validation?.status,
-        failedAt: new Date(),
-      };
-      await order.save();
-    } catch (saveErr) {
-      console.error("💥 Error saving invalid-validation status:", saveErr);
-    }
-
-    return safeRedirect(
-      `${frontendBaseUrl}/order/payment/fail/${order._id}?reason=invalid_validation`
-    );
+  } catch (unexpectedErr) {
+    // CATCH-ALL: this handler must NEVER let Express handle errors with JSON
+    console.error("💥 Unexpected error in handleSSLCommerzSuccess:", unexpectedErr);
+    return safeRedirect(`${frontendBaseUrl}/payment/error?type=unexpected_error`);
   }
 };
 
 exports.handleSSLCommerzFail = async (req, res) => {
-  console.log("❌ SSL Fail callback invoked:", {
-    method: req.method,
-    body: req.body,
-    query: req.query,
-  });
-
-  const frontendBaseUrl =
-    process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
-
-  // merge query + body so GET and POST both work
   const params = { ...(req.body || {}), ...(req.query || {}) };
-  const { tran_id, failedreason } = params;
+  const frontendBaseUrl = process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
+  
+  const safeRedirect = (url) => {
+    if (res.headersSent) return;
+    return res.redirect(302, url);
+  };
 
-  console.log("❌ SSL Commerz Failure Callback:", { tran_id, failedreason });
-
-  // ── 1. Validate tran_id ────────────────────────────────────
-  if (!tran_id) {
-    console.warn("⚠️  Missing tran_id in fail callback");
-    return res.redirect(`${frontendBaseUrl}/payment/error?type=missing_tran_id`);
-  }
-
-  // ── 2. Find the order ──────────────────────────────────────
-  let order;
   try {
-    order = await Order.findOne({ sslcommerzTransactionId: tran_id });
-  } catch (dbErr) {
-    console.error("💥 DB error finding order:", dbErr);
-    return res.redirect(
-      `${frontendBaseUrl}/payment/error?type=db_error&tran_id=${tran_id}`
+    const { tran_id, failedreason } = params;
+    console.log("❌ SSL Fail callback:", { tran_id, failedreason });
+
+    if (!tran_id) {
+      return safeRedirect(`${frontendBaseUrl}/payment/error?type=missing_tran_id`);
+    }
+
+    let order;
+    try {
+      order = await Order.findOne({ sslcommerzTransactionId: tran_id });
+    } catch (dbErr) {
+      return safeRedirect(`${frontendBaseUrl}/payment/error?type=db_error`);
+    }
+
+    if (!order) {
+      return safeRedirect(`${frontendBaseUrl}/order/payment/fail/unknown?error=order_not_found&tran_id=${encodeURIComponent(tran_id)}`);
+    }
+
+    if (order.paymentStatus === "paid") {
+      return safeRedirect(`${frontendBaseUrl}/order/payment/success/${order._id}`);
+    }
+
+    try {
+      order.paymentStatus = "failed";
+      order.orderStatus = "pending";
+      order.sslcommerzData = {
+        ...(order.sslcommerzData ? order.sslcommerzData.toObject?.() || order.sslcommerzData : {}),
+        failureResponse: params,
+        failureReason: failedreason || "payment_failed",
+        failedAt: new Date(),
+      };
+      await order.save();
+    } catch (saveErr) {
+      console.error("💥 Error saving failed status:", saveErr);
+    }
+
+    return safeRedirect(
+      `${frontendBaseUrl}/order/payment/fail/${order._id}?reason=${encodeURIComponent(failedreason || "payment_failed")}`
     );
-  }
 
-  if (!order) {
-    console.error("❌ Order not found for failed transaction:", tran_id);
-    return res.redirect(
-      `${frontendBaseUrl}/order/payment/fail/unknown?error=order_not_found&tran_id=${tran_id}`
-    );
+  } catch (unexpectedErr) {
+    console.error("💥 Unexpected error in handleSSLCommerzFail:", unexpectedErr);
+    return safeRedirect(`${frontendBaseUrl}/payment/error?type=unexpected_error`);
   }
-
-  // ── 3. Idempotency — don't overwrite an already-paid order ─
-  //    (edge case: SSL sends fail after IPN already confirmed it)
-  if (order.paymentStatus === "paid") {
-    console.warn("⚠️  Fail callback received for already-paid order:", order.orderNumber);
-    return res.redirect(`${frontendBaseUrl}/order/payment/success/${order._id}`);
-  }
-
-  // ── 4. Update order status ─────────────────────────────────
-  try {
-    order.paymentStatus = "failed";
-    order.orderStatus   = "pending"; // keep pending so user can retry
-    order.sslcommerzData = {
-      ...(order.sslcommerzData || {}),
-      failureResponse: params,
-      failureReason:   failedreason || "payment_failed",
-      failedAt:        new Date(),
-    };
-    await order.save();
-    console.log("💾 Order marked as failed:", order.orderNumber);
-  } catch (saveErr) {
-    console.error("💥 Error saving failed status:", saveErr);
-    // Still redirect — don't return JSON error to the customer
-  }
-
-  // ── 5. Redirect to failure page ────────────────────────────
-  return res.redirect(
-    `${frontendBaseUrl}/order/payment/fail/${order._id}?reason=${encodeURIComponent(
-      failedreason || "payment_failed"
-    )}`
-  );
 };
 
 
@@ -975,71 +967,94 @@ exports.handleSSLCommerzFail = async (req, res) => {
 // ============================================================
 
 exports.handleSSLCommerzCancel = async (req, res) => {
-  console.log("🚫 SSL Cancel callback invoked:", {
-    method: req.method,
-    body: req.body,
-    query: req.query,
-  });
-
+  const params = { ...(req.body || {}), ...(req.query || {}) };
   const frontendBaseUrl =
     process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
 
-  // merge query + body so GET and POST both work
-  const params = { ...(req.body || {}), ...(req.query || {}) };
-  const { tran_id } = params;
+  const safeRedirect = (url) => {
+    if (res.headersSent) return;
+    return res.redirect(302, url);
+  };
 
-  console.log("🚫 SSL Commerz Cancel Callback:", { tran_id });
-
-  // ── 1. Validate tran_id ────────────────────────────────────
-  if (!tran_id) {
-    console.warn("⚠️  Missing tran_id in cancel callback");
-    return res.redirect(`${frontendBaseUrl}/payment/error?type=missing_tran_id`);
-  }
-
-  // ── 2. Find the order ──────────────────────────────────────
-  let order;
   try {
-    order = await Order.findOne({ sslcommerzTransactionId: tran_id });
-  } catch (dbErr) {
-    console.error("💥 DB error finding order:", dbErr);
-    return res.redirect(
-      `${frontendBaseUrl}/payment/error?type=db_error&tran_id=${tran_id}`
+    const { tran_id } = params;
+    console.log("🚫 SSL Cancel callback:", { tran_id, params });
+
+    // ── 1. Validate tran_id ──────────────────────────────────
+    if (!tran_id) {
+      console.warn("⚠️  Missing tran_id in cancel callback");
+      return safeRedirect(
+        `${frontendBaseUrl}/payment/error?type=missing_tran_id`
+      );
+    }
+
+    // ── 2. Find the order ────────────────────────────────────
+    let order;
+    try {
+      order = await Order.findOne({ sslcommerzTransactionId: tran_id });
+    } catch (dbErr) {
+      console.error("💥 DB error finding order:", dbErr);
+      return safeRedirect(
+        `${frontendBaseUrl}/payment/error?type=db_error&tran_id=${encodeURIComponent(tran_id)}`
+      );
+    }
+
+    if (!order) {
+      console.error("❌ Order not found for cancelled transaction:", tran_id);
+      return safeRedirect(
+        `${frontendBaseUrl}/order/payment/cancel/unknown?error=order_not_found&tran_id=${encodeURIComponent(tran_id)}`
+      );
+    }
+
+    console.log("📦 Order found:", {
+      orderNumber: order.orderNumber,
+      orderId: order._id,
+      currentPaymentStatus: order.paymentStatus,
+    });
+
+    // ── 3. Idempotency — don't overwrite an already-paid order ──
+    if (order.paymentStatus === "paid") {
+      console.warn(
+        "⚠️  Cancel callback received for already-paid order:",
+        order.orderNumber
+      );
+      return safeRedirect(
+        `${frontendBaseUrl}/order/payment/success/${order._id}`
+      );
+    }
+
+    // ── 4. Update order status ───────────────────────────────
+    try {
+      order.paymentStatus = "failed";
+      order.orderStatus = "canceled";
+      order.sslcommerzData = {
+        ...(order.sslcommerzData
+          ? order.sslcommerzData.toObject?.() || order.sslcommerzData
+          : {}),
+        cancelResponse: params,
+        cancelledAt: new Date(),
+      };
+      await order.save();
+      console.log("💾 Order marked as cancelled:", order.orderNumber);
+    } catch (saveErr) {
+      console.error("💥 Error saving cancelled status:", saveErr);
+      // Still redirect — don't return error to the customer
+    }
+
+    // ── 5. Redirect to cancel page ───────────────────────────
+    return safeRedirect(
+      `${frontendBaseUrl}/order/payment/cancel/${order._id}`
+    );
+  } catch (unexpectedErr) {
+    // CATCH-ALL: this handler must NEVER let Express handle errors with JSON
+    console.error(
+      "💥 Unexpected error in handleSSLCommerzCancel:",
+      unexpectedErr
+    );
+    return safeRedirect(
+      `${frontendBaseUrl}/payment/error?type=unexpected_error`
     );
   }
-
-  if (!order) {
-    console.error("❌ Order not found for cancelled transaction:", tran_id);
-    return res.redirect(
-      `${frontendBaseUrl}/order/payment/cancel/unknown?error=order_not_found&tran_id=${tran_id}`
-    );
-  }
-
-  // ── 3. Idempotency — don't overwrite an already-paid order ─
-  if (order.paymentStatus === "paid") {
-    console.warn("⚠️  Cancel callback received for already-paid order:", order.orderNumber);
-    return res.redirect(`${frontendBaseUrl}/order/payment/success/${order._id}`);
-  }
-
-  // ── 4. Update order status ─────────────────────────────────
-  try {
-    order.paymentStatus = "failed";
-    order.orderStatus   = "canceled";
-    order.sslcommerzData = {
-      ...(order.sslcommerzData || {}),
-      cancelResponse: params,
-      cancelledAt:    new Date(),
-    };
-    await order.save();
-    console.log("💾 Order marked as cancelled:", order.orderNumber);
-  } catch (saveErr) {
-    console.error("💥 Error saving cancelled status:", saveErr);
-    // Still redirect — don't return JSON error to the customer
-  }
-
-  // ── 5. Redirect to cancel page ─────────────────────────────
-  return res.redirect(
-    `${frontendBaseUrl}/order/payment/cancel/${order._id}`
-  );
 };
 
 
