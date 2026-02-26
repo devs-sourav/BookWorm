@@ -901,7 +901,7 @@ exports.handleSSLCommerzSuccess = async (req, res, next) => {
     const errorUrl = `${frontendBaseUrl}/payment/error?type=system_error&tran_id=${tran_id}`;
     return res.redirect(errorUrl);
   }
-});
+};
 
 // FIXED SSL Commerz Failure Callback
 exports.handleSSLCommerzFail = catchAsync(async (req, res, next) => {
