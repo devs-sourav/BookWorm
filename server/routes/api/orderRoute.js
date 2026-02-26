@@ -24,9 +24,26 @@ router.get("/user/:userId", getUserOrdersController);
 
 // SSL Commerz payment routes
 router.post("/payment/sslcommerz/initiate", initiateSSLCommerzPayment);
+
+// handle both POST (preferred) and GET (some gateways redirect with query params)
 router.post("/payment/success", handleSSLCommerzSuccess);
+router.get("/payment/success", (req, res, next) => {
+  // copy query parameters into body so handler can use same logic
+  req.body = { ...(req.query || {}) };
+  return handleSSLCommerzSuccess(req, res, next);
+});
+
 router.post("/payment/fail", handleSSLCommerzFail);
+router.get("/payment/fail", (req, res, next) => {
+  req.body = { ...(req.query || {}) };
+  return handleSSLCommerzFail(req, res, next);
+});
+
 router.post("/payment/cancel", handleSSLCommerzCancel);
+router.get("/payment/cancel", (req, res, next) => {
+  req.body = { ...(req.query || {}) };
+  return handleSSLCommerzCancel(req, res, next);
+});
 router.post("/payment/sslcommerz/ipn", handleSSLCommerzIPN); // NEW: IPN endpoint
 router.post("/payment/validate", validateSSLCommerzTransaction); // NEW: Manual validation
 

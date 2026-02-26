@@ -711,9 +711,19 @@ exports.initiateSSLCommerzPayment = catchAsync(async (req, res, next) => {
 
 // FIXED SSL Commerz Success Callback with validation - NO catchAsync!
 exports.handleSSLCommerzSuccess = async (req, res, next) => {
+  // debugging info for GET vs POST
+  console.log("🛠 SSL Success callback invoked", {
+    method: req.method,
+    body: req.body,
+    query: req.query,
+  });
+  // keep a reference outside the try so catch can still use it
+  let tran_id;
+
   try {
+    // protect against req.body being undefined
     const {
-      tran_id,
+      tran_id: incomingTranId,
       amount,
       currency,
       bank_tran_id,
@@ -725,7 +735,9 @@ exports.handleSSLCommerzSuccess = async (req, res, next) => {
       card_issuer_country_code,
       val_id,
       status,
-    } = req.body;
+    } = req.body || {};
+
+    tran_id = incomingTranId;
 
     console.log("🎉 SSL Commerz Success Callback Received:", {
       tran_id,
@@ -877,10 +889,13 @@ exports.handleSSLCommerzSuccess = async (req, res, next) => {
   } catch (error) {
     console.error("💥 SSL Commerz validation error:", error);
 
+    // use a safe value in case tran_id was never set
+    const safeTranId = tran_id || req?.body?.tran_id || "unknown";
+
     // Try to find order for error handling
     let order;
     try {
-      order = await Order.findOne({ sslcommerzTransactionId: tran_id });
+      order = await Order.findOne({ sslcommerzTransactionId: safeTranId });
       if (order) {
         order.paymentStatus = "failed";
         order.orderStatus = "payment_failed";
@@ -898,14 +913,20 @@ exports.handleSSLCommerzSuccess = async (req, res, next) => {
     // Fallback error redirect
     const frontendBaseUrl =
       process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
-    const errorUrl = `${frontendBaseUrl}/payment/error?type=system_error&tran_id=${tran_id}`;
+    const errorUrl = `${frontendBaseUrl}/payment/error?type=system_error&tran_id=${safeTranId}`;
     return res.redirect(errorUrl);
   }
 };
 
 // FIXED SSL Commerz Failure Callback
 exports.handleSSLCommerzFail = catchAsync(async (req, res, next) => {
-  const { tran_id, failedreason } = req.body;
+  console.log("🛠 SSL Failure callback invoked", {
+    method: req.method,
+    body: req.body,
+    query: req.query,
+  });
+
+  const { tran_id, failedreason } = req.body || {};
 
   console.log("❌ SSL Commerz Failure Callback:", { tran_id, failedreason });
 
@@ -939,7 +960,13 @@ exports.handleSSLCommerzFail = catchAsync(async (req, res, next) => {
 
 // FIXED SSL Commerz Cancel Callback
 exports.handleSSLCommerzCancel = catchAsync(async (req, res, next) => {
-  const { tran_id } = req.body;
+  console.log("🛠 SSL Cancel callback invoked", {
+    method: req.method,
+    body: req.body,
+    query: req.query,
+  });
+
+  const { tran_id } = req.body || {};
 
   console.log("🚫 SSL Commerz Cancel Callback:", { tran_id });
 
