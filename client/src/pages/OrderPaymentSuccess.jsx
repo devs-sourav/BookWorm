@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams, Link } from "react-router-dom";
 import { resetCart } from "../redux/slices/cartSlices";
@@ -18,8 +18,6 @@ import {
   Clock,
   ShoppingBag,
   ArrowRight,
-  ExternalLink,
-  FileText,
 } from "lucide-react";
 import { useDispatch } from "react-redux";
 
@@ -30,12 +28,9 @@ const OrderPaymentSuccess = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [paymentUpdating, setPaymentUpdating] = useState(true);
-  const [updateSuccess, setUpdateSuccess] = useState(false);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
-  const invoiceRef = useRef();
-  const dispatch = useDispatch();
 
+  const dispatch = useDispatch();
   const { orderId } = useParams();
 
   useEffect(() => {
@@ -43,30 +38,21 @@ const OrderPaymentSuccess = () => {
       if (!orderId) {
         setError("Order ID not found in URL");
         setLoading(false);
-        setPaymentUpdating(false);
         return;
       }
 
       try {
-        setPaymentUpdating(true);
-
-        // Step 1: Update payment status (best-effort, swallow errors)
+        // Step 1: Update payment status (best-effort, errors swallowed)
         try {
           await axios.patch(`${API_BASE}/api/v1/order/${orderId}/status`, {
             paymentStatus: "paid",
             orderStatus: "confirmed",
           });
-          setUpdateSuccess(true);
         } catch (errPatch) {
-          // swallow patch error — still fetch order below
           console.warn("PATCH failed, continuing to fetch order:", errPatch.message);
         }
 
-        setPaymentUpdating(false);
-
         // Step 2: Always fetch the full populated order from GET endpoint
-        // This ensures we always get the complete order with all nested fields
-        // (products, user, area, zone, city, etc.)
         const orderResponse = await axios.get(`${API_BASE}/api/v1/order/${orderId}`);
         const orderResult = orderResponse.data;
         const doc =
@@ -77,16 +63,14 @@ const OrderPaymentSuccess = () => {
 
         if (doc && (doc._id || doc.formattedOrderNumber)) {
           setOrderData(doc);
-          setLoading(false);
         } else {
           setError("Could not load order details. Please check your order history.");
-          setLoading(false);
         }
       } catch (err) {
         setError(err.message || "Something went wrong. Please contact support.");
-        setPaymentUpdating(false);
-        setLoading(false);
         console.error("Order processing error:", err);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -152,22 +136,14 @@ const OrderPaymentSuccess = () => {
             <div class="company-name">BookWorm</div>
             <div class="invoice-title">INVOICE</div>
           </div>
-          
           <div class="section">
             <div class="section-title">Order Information</div>
             <div class="info-row"><span>Order Number:</span><span>${orderData.formattedOrderNumber}</span></div>
             <div class="info-row"><span>Order Date:</span><span>${formatDateTime(orderData.createdAt)}</span></div>
             <div class="info-row"><span>Payment Method:</span><span>SSLCommerz</span></div>
-            <div class="info-row">
-              <span>Order Status:</span>
-              <span class="status-badge status-confirmed">${orderData.orderStatus?.toUpperCase()}</span>
-            </div>
-            <div class="info-row">
-              <span>Payment Status:</span>
-              <span class="status-badge status-paid">${orderData.paymentStatus?.toUpperCase()}</span>
-            </div>
+            <div class="info-row"><span>Order Status:</span><span class="status-badge status-confirmed">${orderData.orderStatus?.toUpperCase()}</span></div>
+            <div class="info-row"><span>Payment Status:</span><span class="status-badge status-paid">${orderData.paymentStatus?.toUpperCase()}</span></div>
           </div>
-
           <div class="section">
             <div class="section-title">Customer Information</div>
             <div class="info-row"><span>Name:</span><span>${orderData.name}</span></div>
@@ -175,24 +151,14 @@ const OrderPaymentSuccess = () => {
             <div class="info-row"><span>Phone:</span><span>${orderData.phone}</span></div>
             <div class="info-row"><span>Address:</span><span>${orderData.streetAddress}, ${orderData.area?.areaName}, ${orderData.zone?.zoneName}, ${orderData.city?.cityName}</span></div>
           </div>
-
           <div class="section">
             <div class="section-title">Order Items</div>
             <table class="table">
               <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Author</th>
-                  <th>Format</th>
-                  <th>Qty</th>
-                  <th>Unit Price</th>
-                  <th>Total</th>
-                </tr>
+                <tr><th>Item</th><th>Author</th><th>Format</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
               </thead>
               <tbody>
-                ${orderData.products
-                  .map(
-                    (item) => `
+                ${orderData.products.map((item) => `
                   <tr>
                     <td>${item.title}</td>
                     <td>${item.author}</td>
@@ -201,19 +167,15 @@ const OrderPaymentSuccess = () => {
                     <td>৳${item.salePrice}</td>
                     <td>৳${item.salePrice * item.quantity}</td>
                   </tr>
-                `
-                  )
-                  .join("")}
+                `).join("")}
               </tbody>
             </table>
           </div>
-
           <div class="total-section">
             <div class="total-row"><span>Subtotal:</span><span>৳${orderData.subtotal}</span></div>
             <div class="total-row"><span>Shipping:</span><span>৳${orderData.shippingCost}</span></div>
             <div class="total-row grand-total"><span>Total:</span><span>৳${orderData.totalCost}</span></div>
           </div>
-
           <div style="margin-top: 30px; text-align: center; color: #6b7280; font-size: 12px;">
             <p>Thank you for your business!</p>
             <p>This is a computer generated invoice.</p>
@@ -225,61 +187,16 @@ const OrderPaymentSuccess = () => {
     printWindow.document.write(invoiceHTML);
     printWindow.document.close();
     printWindow.print();
-
     setTimeout(() => setDownloadingInvoice(false), 1000);
   };
 
+  // Simple loading spinner — no "Processing Payment" messaging
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8 bg-white rounded-3xl shadow-xl">
-          {paymentUpdating ? (
-            <>
-              <div className="relative">
-                <div className="animate-spin rounded-full h-20 w-20 border-4 border-emerald-200 border-t-emerald-600 mx-auto"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <CreditCard className="h-8 w-8 text-emerald-600" />
-                </div>
-              </div>
-              <h2 className="mt-6 text-2xl font-bold text-gray-900">
-                Processing Payment
-              </h2>
-              <p className="mt-2 text-gray-600">
-                Securely confirming your payment...
-              </p>
-              <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-emerald-600 h-2 rounded-full w-3/4 animate-pulse"></div>
-              </div>
-            </>
-          ) : updateSuccess ? (
-            <>
-              <div className="relative">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-100 rounded-full mb-4">
-                  <CheckCircle className="h-12 w-12 text-emerald-600" />
-                </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs">✓</span>
-                </div>
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                Payment Confirmed!
-              </h2>
-              <p className="mt-2 text-gray-600">
-                Loading your order details...
-              </p>
-              <div className="animate-pulse mt-4 space-y-2">
-                <div className="h-2 bg-blue-200 rounded w-full"></div>
-                <div className="h-2 bg-blue-200 rounded w-3/4"></div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600 font-medium">
-                Loading order details...
-              </p>
-            </>
-          )}
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-200 border-t-emerald-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 font-medium">Loading order details...</p>
         </div>
       </div>
     );
@@ -292,9 +209,7 @@ const OrderPaymentSuccess = () => {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Package className="h-8 w-8 text-red-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Unable to Load Order
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Unable to Load Order</h1>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
             onClick={() => window.location.reload()}
@@ -314,9 +229,7 @@ const OrderPaymentSuccess = () => {
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Package className="h-8 w-8 text-gray-600" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            No Order Data
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">No Order Data</h1>
           <p className="text-gray-600">Unable to load order information.</p>
         </div>
       </div>
@@ -342,7 +255,6 @@ const OrderPaymentSuccess = () => {
             processing your order immediately.
           </p>
 
-          {/* Action Buttons Row */}
           <div className="flex flex-wrap justify-center gap-4 mt-8">
             <button
               onClick={generateInvoicePDF}
@@ -374,24 +286,18 @@ const OrderPaymentSuccess = () => {
                   <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4">
                     <Package className="h-6 w-6 text-blue-600" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    Order Details
-                  </h2>
+                  <h2 className="text-2xl font-bold text-gray-900">Order Details</h2>
                 </div>
                 <div className="text-right">
                   <div className="text-sm text-gray-500">Order placed</div>
-                  <div className="font-semibold">
-                    {formatDateTime(orderData.createdAt)}
-                  </div>
+                  <div className="font-semibold">{formatDateTime(orderData.createdAt)}</div>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                    <span className="text-gray-600 font-medium">
-                      Order Number
-                    </span>
+                    <span className="text-gray-600 font-medium">Order Number</span>
                     <div className="flex items-center">
                       <span className="font-bold text-gray-900 mr-2">
                         {orderData.formattedOrderNumber}
@@ -411,9 +317,7 @@ const OrderPaymentSuccess = () => {
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                    <span className="text-gray-600 font-medium">
-                      Payment Method
-                    </span>
+                    <span className="text-gray-600 font-medium">Payment Method</span>
                     <div className="flex items-center">
                       <CreditCard className="h-4 w-4 text-gray-500 mr-2" />
                       <span className="font-semibold">SSLCommerz</span>
@@ -423,9 +327,7 @@ const OrderPaymentSuccess = () => {
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl">
-                    <span className="text-gray-600 font-medium">
-                      Order Status
-                    </span>
+                    <span className="text-gray-600 font-medium">Order Status</span>
                     <span className="px-4 py-2 bg-emerald-100 text-emerald-800 rounded-full text-sm font-bold">
                       {orderData.orderStatus?.charAt(0).toUpperCase() +
                         orderData.orderStatus?.slice(1)}
@@ -433,9 +335,7 @@ const OrderPaymentSuccess = () => {
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl">
-                    <span className="text-gray-600 font-medium">
-                      Payment Status
-                    </span>
+                    <span className="text-gray-600 font-medium">Payment Status</span>
                     <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-bold">
                       {orderData.paymentStatus?.charAt(0).toUpperCase() +
                         orderData.paymentStatus?.slice(1)}
@@ -448,12 +348,8 @@ const OrderPaymentSuccess = () => {
               <div className="mt-6 p-6 bg-gradient-to-r from-emerald-500 to-blue-600 rounded-2xl text-white">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-emerald-100 text-sm">
-                      Total Amount Paid
-                    </div>
-                    <div className="text-3xl font-bold">
-                      ৳{orderData.totalCost}
-                    </div>
+                    <div className="text-emerald-100 text-sm">Total Amount Paid</div>
+                    <div className="text-3xl font-bold">৳{orderData.totalCost}</div>
                   </div>
                   <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
                     <CheckCircle className="h-8 w-8 text-white" />
@@ -468,9 +364,7 @@ const OrderPaymentSuccess = () => {
                 <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mr-4">
                   <ShoppingBag className="h-6 w-6 text-orange-600" />
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Order Items
-                </h2>
+                <h2 className="text-2xl font-bold text-gray-900">Order Items</h2>
               </div>
 
               <div className="space-y-6">
@@ -480,20 +374,14 @@ const OrderPaymentSuccess = () => {
                     className="flex items-center space-x-6 p-6 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors"
                   >
                     <img
-                      src={
-                        item.product?.photos?.[0] || "/api/placeholder/100/120"
-                      }
+                      src={item.product?.photos?.[0] || "/api/placeholder/100/120"}
                       alt={item.title}
                       className="w-20 h-24 object-cover rounded-xl shadow-md"
                     />
                     <div className="flex-1">
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">
-                        {item.title}
-                      </h3>
+                      <h3 className="text-lg font-bold text-gray-900 mb-1">{item.title}</h3>
                       <p className="text-gray-600 mb-1">by {item.author}</p>
-                      <p className="text-sm text-gray-500 mb-1">
-                        ISBN: {item.isbn}
-                      </p>
+                      <p className="text-sm text-gray-500 mb-1">ISBN: {item.isbn}</p>
                       <div className="flex items-center space-x-2">
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-lg text-xs font-medium">
                           {item.format}
@@ -506,13 +394,9 @@ const OrderPaymentSuccess = () => {
                     <div className="text-right">
                       <div className="flex items-center space-x-2 mb-2">
                         {item.price !== item.salePrice && (
-                          <span className="text-gray-400 line-through text-sm">
-                            ৳{item.price}
-                          </span>
+                          <span className="text-gray-400 line-through text-sm">৳{item.price}</span>
                         )}
-                        <span className="text-xl font-bold text-emerald-600">
-                          ৳{item.salePrice}
-                        </span>
+                        <span className="text-xl font-bold text-emerald-600">৳{item.salePrice}</span>
                       </div>
                       <div className="text-sm text-gray-600">
                         Total: ৳{item.salePrice * item.quantity}
@@ -531,16 +415,12 @@ const OrderPaymentSuccess = () => {
                   </div>
                   <div className="flex justify-between text-gray-600">
                     <span>Shipping & Handling</span>
-                    <span className="font-semibold">
-                      ৳{orderData.shippingCost}
-                    </span>
+                    <span className="font-semibold">৳{orderData.shippingCost}</span>
                   </div>
                   <div className="border-t pt-3">
                     <div className="flex justify-between text-xl font-bold text-gray-900">
                       <span>Total</span>
-                      <span className="text-emerald-600">
-                        ৳{orderData.totalCost}
-                      </span>
+                      <span className="text-emerald-600">৳{orderData.totalCost}</span>
                     </div>
                   </div>
                 </div>
@@ -556,9 +436,7 @@ const OrderPaymentSuccess = () => {
                 <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center mr-3">
                   <Truck className="h-5 w-5 text-emerald-600" />
                 </div>
-                <h3 className="text-lg font-bold text-gray-900">
-                  Delivery Info
-                </h3>
+                <h3 className="text-lg font-bold text-gray-900">Delivery Info</h3>
               </div>
 
               <div className="space-y-4">
@@ -569,16 +447,12 @@ const OrderPaymentSuccess = () => {
                   <div className="flex items-start">
                     <MapPin className="h-4 w-4 text-gray-400 mr-2 mt-1 flex-shrink-0" />
                     <div className="text-sm">
-                      <p className="font-semibold text-gray-900">
-                        {orderData.name}
-                      </p>
+                      <p className="font-semibold text-gray-900">{orderData.name}</p>
                       <p className="text-gray-700">{orderData.streetAddress}</p>
                       <p className="text-gray-700">
                         {orderData.area?.areaName}, {orderData.zone?.zoneName}
                       </p>
-                      <p className="text-gray-700">
-                        {orderData.city?.cityName}
-                      </p>
+                      <p className="text-gray-700">{orderData.city?.cityName}</p>
                     </div>
                   </div>
                 </div>
@@ -590,15 +464,11 @@ const OrderPaymentSuccess = () => {
                   <div className="space-y-2">
                     <div className="flex items-center">
                       <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-sm text-gray-900">
-                        {orderData.phone}
-                      </span>
+                      <span className="text-sm text-gray-900">{orderData.phone}</span>
                     </div>
                     <div className="flex items-center">
                       <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-sm text-gray-900">
-                        {orderData.email}
-                      </span>
+                      <span className="text-sm text-gray-900">{orderData.email}</span>
                     </div>
                   </div>
                 </div>
@@ -624,8 +494,7 @@ const OrderPaymentSuccess = () => {
                     </p>
                   </div>
                   <p className="text-xs text-blue-700">
-                    You'll receive notifications when your order is shipped and
-                    out for delivery.
+                    You'll receive notifications when your order is shipped and out for delivery.
                   </p>
                 </div>
               </div>
@@ -651,18 +520,14 @@ const OrderPaymentSuccess = () => {
                 </div>
                 <div>
                   <div className="text-sm text-gray-500">Member Since</div>
-                  <div className="font-semibold">
-                    {formatDate(orderData.user?.createdAt)}
-                  </div>
+                  <div className="font-semibold">{formatDate(orderData.user?.createdAt)}</div>
                 </div>
               </div>
             </div>
 
             {/* Quick Actions */}
             <div className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Quick Actions
-              </h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <Link
                   to={"/shop"}
