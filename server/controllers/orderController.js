@@ -709,59 +709,56 @@ exports.initiateSSLCommerzPayment = catchAsync(async (req, res, next) => {
   }
 });
 
-// FIXED SSL Commerz Success Callback with validation
-exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
-  console.log("🎉 SSL Commerz Success Callback Received:");
-  console.log("Request Headers:", JSON.stringify(req.headers));
-  console.log("Request Body:", JSON.stringify(req.body));
-  console.log("Request Query:", JSON.stringify(req.query));
-
-  const {
-    tran_id,
-    amount,
-    currency,
-    bank_tran_id,
-    card_type,
-    card_no,
-    card_issuer,
-    card_brand,
-    card_issuer_country,
-    card_issuer_country_code,
-    val_id,
-    status,
-  } = req.body;
-
-  console.log("📝 Extracted params:", {
-    tran_id,
-    amount,
-    currency,
-    card_type: card_type || "N/A",
-    val_id,
-    status,
-  });
-
+// FIXED SSL Commerz Success Callback with validation - NO catchAsync to allow redirects
+exports.handleSSLCommerzSuccess = async (req, res, next) => {
   try {
+    console.log("🎉 SSL Commerz Success Callback Received:");
+    console.log("Request Headers:", JSON.stringify(req.headers));
+    console.log("Request Body:", JSON.stringify(req.body));
+    console.log("Request Query:", JSON.stringify(req.query));
+
+    const {
+      tran_id,
+      amount,
+      currency,
+      bank_tran_id,
+      card_type,
+      card_no,
+      card_issuer,
+      card_brand,
+      card_issuer_country,
+      card_issuer_country_code,
+      val_id,
+      status,
+    } = req.body;
+
+    console.log("📝 Extracted params:", {
+      tran_id,
+      amount,
+      currency,
+      card_type: card_type || "N/A",
+      val_id,
+      status,
+    });
+
     // Validate required parameters
     if (!tran_id || !val_id) {
       console.warn("⚠️ Missing required parameters for payment callback:", {
         hasTranId: !!tran_id,
         hasValId: !!val_id,
       });
-      
+
       // If called as GET with no body, redirect to home
       if (req.method === "GET") {
         const frontendBaseUrl =
           process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
         return res.redirect(`${frontendBaseUrl}/payment/error?type=missing_params`);
       }
-      
-      // If called as POST with missing params, that's an error
-      return next(
-        new AppError(
-          "Missing required payment callback parameters (tran_id or val_id)",
-          400
-        )
-      );
+
+      // If called as POST with missing params, redirect to error
+      const frontendBaseUrl =
+        process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
+      return res.redirect(`${frontendBaseUrl}/payment/error?type=missing_params`);
     }
     const order = await Order.findOne({
       sslcommerzTransactionId: tran_id,
@@ -903,34 +900,33 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
     console.error("💥 SSL Commerz validation error:", error);
     console.error("Error message:", error.message);
     console.error("Error stack:", error.stack);
-    console.error("Error name:", error.name);
 
-    // Try to find order for error handling
-    let order;
+    // Try to find order and mark as failed
     try {
-      order = await Order.findOne({ sslcommerzTransactionId: tran_id });
+      const order = await Order.findOne({ sslcommerzTransactionId: tran_id });
       if (order) {
         order.paymentStatus = "failed";
         order.orderStatus = "payment_failed";
+        order.sslcommerzData = {
+          ...order.sslcommerzData,
+          validationError: error.message,
+          failedAt: new Date(),
+        };
         await order.save();
-
-        const frontendBaseUrl =
-          process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
-        const failUrl = `${frontendBaseUrl}/order/payment/fail/${order._id}?reason=validation_error`;
-        return res.redirect(failUrl);
+        console.log("✅ Marked order as failed");
       }
     } catch (findError) {
-      console.error("Failed to find order for error handling:", findError);
+      console.error("Failed to mark order as failed:", findError.message);
     }
 
-    // Fallback error redirect
+    // Redirect to error page
     const frontendBaseUrl =
       process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
-    const errorUrl = `${frontendBaseUrl}/payment/error?type=system_error&tran_id=${tran_id}&error=${encodeURIComponent(error.message)}`;
+    const errorUrl = `${frontendBaseUrl}/payment/error?type=validation_error&tran_id=${tran_id || "unknown"}&error=${encodeURIComponent(error.message)}`;
     console.log("🔗 Redirecting to error URL:", errorUrl);
     return res.redirect(errorUrl);
   }
-});
+};
 
 // FIXED SSL Commerz Failure Callback
 exports.handleSSLCommerzFail = catchAsync(async (req, res, next) => {
