@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import axios from "axios";
 import { useParams,Link } from "react-router-dom";
 import { resetCart } from "../redux/slices/cartSlices";
 
@@ -42,17 +43,15 @@ const OrderPaymentSuccess = () => {
       // quick polling fallback, usually not needed if PATCH returns data
       for (let i = 0; i < attempts; i++) {
         try {
-          const orderResponse = await fetch(`${API_BASE}/api/v1/order/${orderId}`);
-          if (orderResponse.ok) {
-            const orderResult = await orderResponse.json();
-            const doc = orderResult.data?.doc || orderResult.data?.order || orderResult;
-            if (doc) setOrderData(doc);
-            if (doc?.paymentStatus === "paid") {
-              setUpdateSuccess(true);
-              setPaymentUpdating(false);
-              setLoading(false);
-              return doc;
-            }
+          const orderResponse = await axios.get(`${API_BASE}/api/v1/order/${orderId}`);
+          const orderResult = orderResponse.data;
+          const doc = orderResult.data?.doc || orderResult.data?.order || orderResult;
+          if (doc) setOrderData(doc);
+          if (doc?.paymentStatus === "paid") {
+            setUpdateSuccess(true);
+            setPaymentUpdating(false);
+            setLoading(false);
+            return doc;
           }
         } catch (pollErr) {
           // ignore and retry
@@ -77,40 +76,32 @@ const OrderPaymentSuccess = () => {
 
         // Try to PATCH the order status (best-effort). If it fails, we'll fallback to polling the order.
         try {
-          const updateResponse = await fetch(
+          const updateResponse = await axios.patch(
             `${API_BASE}/api/v1/order/${orderId}/status`,
             {
-              method: "PATCH",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                paymentStatus: "paid",
-                orderStatus: "confirmed",
-              }),
+              paymentStatus: "paid",
+              orderStatus: "confirmed",
             }
           );
 
-          if (updateResponse.ok) {
-            const patchResult = await updateResponse.json();
-            // backend may return the updated order in the response
-            const patchedDoc =
-              patchResult.data?.doc ||
-              patchResult.data?.order ||
-              patchResult;
-            if (patchedDoc) {
-              setOrderData(patchedDoc);
-            }
-
-            setUpdateSuccess(true);
-            setPaymentUpdating(false);
-            setLoading(false);
-            // if we already have data and status is paid, we're done
-            if (patchedDoc?.paymentStatus === "paid") {
-              return;
-            }
-            // otherwise fall through to the polling fallback
+          const patchResult = updateResponse.data;
+          // backend may return the updated order in the response
+          const patchedDoc =
+            patchResult.data?.doc ||
+            patchResult.data?.order ||
+            patchResult;
+          if (patchedDoc) {
+            setOrderData(patchedDoc);
           }
+
+          setUpdateSuccess(true);
+          setPaymentUpdating(false);
+          setLoading(false);
+          // if we already have data and status is paid, we're done
+          if (patchedDoc?.paymentStatus === "paid") {
+            return;
+          }
+          // otherwise fall through to the polling fallback
         } catch (errPatch) {
           // swallow and fallback to polling below
         }
