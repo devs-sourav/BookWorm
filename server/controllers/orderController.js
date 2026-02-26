@@ -711,6 +711,11 @@ exports.initiateSSLCommerzPayment = catchAsync(async (req, res, next) => {
 
 // FIXED SSL Commerz Success Callback with validation
 exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
+  console.log("🎉 SSL Commerz Success Callback Received:");
+  console.log("Request Headers:", JSON.stringify(req.headers));
+  console.log("Request Body:", JSON.stringify(req.body));
+  console.log("Request Query:", JSON.stringify(req.query));
+
   const {
     tran_id,
     amount,
@@ -726,7 +731,7 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
     status,
   } = req.body;
 
-  console.log("🎉 SSL Commerz Success Callback Received:", {
+  console.log("📝 Extracted params:", {
     tran_id,
     amount,
     currency,
@@ -736,7 +741,28 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
   });
 
   try {
-    // Find order by transaction ID
+    // Validate required parameters
+    if (!tran_id || !val_id) {
+      console.warn("⚠️ Missing required parameters for payment callback:", {
+        hasTranId: !!tran_id,
+        hasValId: !!val_id,
+      });
+      
+      // If called as GET with no body, redirect to home
+      if (req.method === "GET") {
+        const frontendBaseUrl =
+          process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
+        return res.redirect(`${frontendBaseUrl}/payment/error?type=missing_params`);
+      }
+      
+      // If called as POST with missing params, that's an error
+      return next(
+        new AppError(
+          "Missing required payment callback parameters (tran_id or val_id)",
+          400
+        )
+      );
+    }
     const order = await Order.findOne({
       sslcommerzTransactionId: tran_id,
     })
@@ -788,11 +814,20 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
 
     // Validate the transaction with SSL Commerz
     const is_live = process.env.NODE_ENV === "production";
-    const sslcz = new SSLCommerzPayment(
-      process.env.SSLCOMMERZ_STORE_ID,
-      process.env.SSLCOMMERZ_STORE_PASSWORD,
-      is_live
-    );
+    const storeId = process.env.SSLCOMMERZ_STORE_ID;
+    const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD;
+
+    if (!storeId || !storePassword) {
+      console.error(
+        "❌ SSL Commerz credentials missing:",
+        { hasStoreId: !!storeId, hasPassword: !!storePassword }
+      );
+      throw new Error(
+        "SSL Commerz Store ID or Password not configured in environment"
+      );
+    }
+
+    const sslcz = new SSLCommerzPayment(storeId, storePassword, is_live);
 
     console.log("🔍 Validating transaction with SSL Commerz...", { val_id });
     const validation = await sslcz.validate({ val_id });
@@ -866,6 +901,9 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
     }
   } catch (error) {
     console.error("💥 SSL Commerz validation error:", error);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    console.error("Error name:", error.name);
 
     // Try to find order for error handling
     let order;
@@ -888,13 +926,16 @@ exports.handleSSLCommerzSuccess = catchAsync(async (req, res, next) => {
     // Fallback error redirect
     const frontendBaseUrl =
       process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
-    const errorUrl = `${frontendBaseUrl}/payment/error?type=system_error&tran_id=${tran_id}`;
+    const errorUrl = `${frontendBaseUrl}/payment/error?type=system_error&tran_id=${tran_id}&error=${encodeURIComponent(error.message)}`;
+    console.log("🔗 Redirecting to error URL:", errorUrl);
     return res.redirect(errorUrl);
   }
 });
 
 // FIXED SSL Commerz Failure Callback
 exports.handleSSLCommerzFail = catchAsync(async (req, res, next) => {
+  console.log("❌ SSL Commerz Failure Callback Received:");
+  console.log("Request Body:", JSON.stringify(req.body));
   const { tran_id, failedreason } = req.body;
 
   console.log("❌ SSL Commerz Failure Callback:", { tran_id, failedreason });
@@ -929,6 +970,8 @@ exports.handleSSLCommerzFail = catchAsync(async (req, res, next) => {
 
 // FIXED SSL Commerz Cancel Callback
 exports.handleSSLCommerzCancel = catchAsync(async (req, res, next) => {
+  console.log("🚫 SSL Commerz Cancel Callback Received:");
+  console.log("Request Body:", JSON.stringify(req.body));
   const { tran_id } = req.body;
 
   console.log("🚫 SSL Commerz Cancel Callback:", { tran_id });
@@ -960,6 +1003,9 @@ exports.handleSSLCommerzCancel = catchAsync(async (req, res, next) => {
 
 // NEW: SSL Commerz IPN (Instant Payment Notification) Handler
 exports.handleSSLCommerzIPN = catchAsync(async (req, res, next) => {
+  console.log("🜟 SSL Commerz IPN received:");
+  console.log("Full request body:", JSON.stringify(req.body));
+
   const {
     tran_id,
     amount,
@@ -973,22 +1019,45 @@ exports.handleSSLCommerzIPN = catchAsync(async (req, res, next) => {
     status,
   } = req.body;
 
-  console.log("SSL Commerz IPN received:", req.body);
+  console.log("📝 IPN Parameters:", {
+    tran_id,
+    amount,
+    val_id,
+    status,
+  });
+
+  if (!tran_id) {
+    console.error("❌ IPN received without tran_id");
+    return res.status(400).send("Missing tran_id");
+  }
 
   const order = await Order.findOne({ sslcommerzTransactionId: tran_id });
 
   if (!order) {
+    console.error("❌ Order not found for IPN tran_id:", tran_id);
     return res.status(404).send("Order not found");
   }
+
+  console.log("📝 Order found for IPN:", {
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    currentPaymentStatus: order.paymentStatus,
+  });
 
   try {
     // Validate with SSL Commerz
     const is_live = process.env.NODE_ENV === "production";
-    const sslcz = new SSLCommerzPayment(
-      process.env.SSLCOMMERZ_STORE_ID,
-      process.env.SSLCOMMERZ_STORE_PASSWORD,
-      is_live
-    );
+    const storeId = process.env.SSLCOMMERZ_STORE_ID;
+    const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD;
+
+    if (!storeId || !storePassword) {
+      console.error("❌ IPN: SSL Commerz credentials missing");
+      throw new Error(
+        "SSL Commerz Store ID or Password not configured in environment"
+      );
+    }
+
+    const sslcz = new SSLCommerzPayment(storeId, storePassword, is_live);
 
     const validation = await sslcz.validate({ val_id });
 
@@ -1038,11 +1107,20 @@ exports.validateSSLCommerzTransaction = catchAsync(async (req, res, next) => {
 
   try {
     const is_live = process.env.NODE_ENV === "production";
-    const sslcz = new SSLCommerzPayment(
-      process.env.SSLCOMMERZ_STORE_ID,
-      process.env.SSLCOMMERZ_STORE_PASSWORD,
-      is_live
-    );
+    const storeId = process.env.SSLCOMMERZ_STORE_ID;
+    const storePassword = process.env.SSLCOMMERZ_STORE_PASSWORD;
+
+    if (!storeId || !storePassword) {
+      console.error("❌ Validate: SSL Commerz credentials missing");
+      return next(
+        new AppError(
+          "SSL Commerz Store ID or Password not configured in environment",
+          500
+        )
+      );
+    }
+
+    const sslcz = new SSLCommerzPayment(storeId, storePassword, is_live);
 
     const validation = await sslcz.validate({ val_id });
 
