@@ -721,7 +721,12 @@ exports.handleSSLCommerzSuccess = async (req, res, next) => {
   let tran_id;
 
   try {
-    // protect against req.body being undefined
+    // merge query and body so GET/POST both work; query wins if duplicates
+    const data = {
+      ...(req.body || {}),
+      ...(req.query || {}),
+    };
+
     const {
       tran_id: incomingTranId,
       amount,
@@ -735,9 +740,14 @@ exports.handleSSLCommerzSuccess = async (req, res, next) => {
       card_issuer_country_code,
       val_id,
       status,
-    } = req.body || {};
+    } = data;
 
+    // remember where we got the value for debugging
     tran_id = incomingTranId;
+    if (!tran_id && req.query && req.query.tran_id) {
+      tran_id = req.query.tran_id;
+      console.log("ℹ️ using tran_id from query string");
+    }
 
     console.log("🎉 SSL Commerz Success Callback Received:", {
       tran_id,
@@ -926,7 +936,8 @@ exports.handleSSLCommerzFail = catchAsync(async (req, res, next) => {
     query: req.query,
   });
 
-  const { tran_id, failedreason } = req.body || {};
+  const params = { ...(req.body || {}), ...(req.query || {}) };
+  const { tran_id, failedreason } = params;
 
   console.log("❌ SSL Commerz Failure Callback:", { tran_id, failedreason });
 
@@ -966,7 +977,8 @@ exports.handleSSLCommerzCancel = catchAsync(async (req, res, next) => {
     query: req.query,
   });
 
-  const { tran_id } = req.body || {};
+  const params = { ...(req.body || {}), ...(req.query || {}) };
+  const { tran_id } = params;
 
   console.log("🚫 SSL Commerz Cancel Callback:", { tran_id });
 
