@@ -774,7 +774,7 @@ exports.handleSSLCommerzSuccess = async (req, res, next) => {
       .populate("products.product", "title author");
 
     if (!order) {
-      console.log("❌ Order not found for transaction:", tran_id);
+      console.log("❌ Order not found for transaction:", tran_id, "payload:", data);
       const frontendBaseUrl =
         process.env.FRONTEND_BASE_URL || "https://bookwormm.netlify.app";
       return res.redirect(
