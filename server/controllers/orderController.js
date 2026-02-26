@@ -194,6 +194,8 @@ const enrichProductsData = async (products) => {
 };
 
 exports.createOrderController = catchAsync(async (req, res, next) => {
+  console.log("🛒 createOrderController payload:", JSON.stringify(req.body));
+
   // determine user id from request body or authenticated user (guest allowed)
   let userDoc = null;
   const userId = req.body.user || req.user?.id || null;
@@ -331,11 +333,15 @@ exports.createOrderController = catchAsync(async (req, res, next) => {
 
   const orderUrl = `${req.protocol}://bookwormm.netlify.app/orders/${order._id}`;
   const email = new Email({ email: order.email, name: order.name }, orderUrl);
-  await email.sendInvoice(order);
+
+  // send email in background; don't let failures stop order creation
+  email.sendInvoice(order).catch((err) => {
+    console.error("📧 Invoice email failed after order creation:", err.message);
+  });
 
   res.status(201).json({
     status: "success",
-    message: "Order created successfully, Check your email inbox please",
+    message: "Order created successfully. Check your email inbox please",
     data: {
       order,
     },
@@ -344,6 +350,7 @@ exports.createOrderController = catchAsync(async (req, res, next) => {
 
 // WITH COUPON CODE:
 exports.createOrderWithCouponController = catchAsync(async (req, res, next) => {
+  console.log("🛍️ createOrderWithCouponController payload:", JSON.stringify(req.body));
   const { coupon, products, user } = req.body;
 
   // determine user id from request body or authenticated user (guest allowed)
@@ -522,7 +529,10 @@ exports.createOrderWithCouponController = catchAsync(async (req, res, next) => {
     amount: couponDiscount,
   };
 
-  await email.sendInvoiceWithCoupon(order, discountInfo);
+  // fire-and-forget email
+  email.sendInvoiceWithCoupon(order, discountInfo).catch((err) => {
+    console.error("📧 Coupon invoice email failed after order creation:", err.message);
+  });
 
   res.status(201).json({
     status: "success",

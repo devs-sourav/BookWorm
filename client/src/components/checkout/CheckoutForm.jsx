@@ -449,8 +449,12 @@ const CheckoutForm = () => {
       console.error("Error response:", error.response?.data);
 
       let errorMessage = "An error occurred while placing the order";
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
+      if (error.response?.data) {
+        // prefer explicit message if available
+        errorMessage =
+          error.response.data.message ||
+          JSON.stringify(error.response.data) ||
+          errorMessage;
       }
 
       setOrderError(errorMessage);
