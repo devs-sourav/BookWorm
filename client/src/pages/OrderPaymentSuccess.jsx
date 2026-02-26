@@ -29,7 +29,6 @@ const OrderPaymentSuccess = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [paymentUpdating, setPaymentUpdating] = useState(true);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [downloadingInvoice, setDownloadingInvoice] = useState(false);
   const invoiceRef = useRef();
@@ -48,7 +47,6 @@ const OrderPaymentSuccess = () => {
             if (doc) setOrderData(doc);
             if (doc?.paymentStatus === "paid") {
               setUpdateSuccess(true);
-              setPaymentUpdating(false);
               setLoading(false);
               return doc;
             }
@@ -56,7 +54,6 @@ const OrderPaymentSuccess = () => {
         } catch (pollErr) {
           // ignore and retry
         }
-        // wait
         // eslint-disable-next-line no-await-in-loop
         await new Promise((r) => setTimeout(r, interval));
       }
@@ -67,14 +64,11 @@ const OrderPaymentSuccess = () => {
       if (!orderId) {
         setError("Order ID not found in URL");
         setLoading(false);
-        setPaymentUpdating(false);
         return;
       }
 
       try {
-        setPaymentUpdating(true);
-
-        // Try to PATCH the order status (best-effort). If it fails, we'll fallback to polling the order.
+        // Try to PATCH the order status (best-effort).
         try {
           const updateResponse = await fetch(
             `${API_BASE}/api/v1/order/${orderId}/status`,
@@ -92,15 +86,12 @@ const OrderPaymentSuccess = () => {
 
           if (updateResponse.ok) {
             setUpdateSuccess(true);
-            setPaymentUpdating(false);
             // small delay to let backend finalize
-            // eslint-disable-next-line no-await-in-loop
             await new Promise((resolve) => setTimeout(resolve, 1000));
             const orderResponse = await fetch(`${API_BASE}/api/v1/order/${orderId}`);
             if (orderResponse.ok) {
               const orderResult = await orderResponse.json();
               setOrderData(orderResult.data.doc || orderResult.data?.order);
-              setPaymentUpdating(false);
               setLoading(false);
               return;
             }
@@ -115,12 +106,10 @@ const OrderPaymentSuccess = () => {
           setError(
             "Payment confirmation is taking longer than expected. Please check your order history or contact support."
           );
-          setPaymentUpdating(false);
           setLoading(false);
         }
       } catch (err) {
         setError(err.message);
-        setPaymentUpdating(false);
         console.error("Order processing error:", err);
       } finally {
         setLoading(false);
@@ -159,7 +148,6 @@ const OrderPaymentSuccess = () => {
   const generateInvoicePDF = async () => {
     setDownloadingInvoice(true);
 
-    // Create a new window with the invoice content
     const printWindow = window.open("", "_blank");
     const invoiceHTML = `
       <!DOCTYPE html>
@@ -291,27 +279,9 @@ const OrderPaymentSuccess = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8 bg-white rounded-3xl shadow-xl">
-          {paymentUpdating ? (
+          {updateSuccess ? (
             <>
-              <div className="relative">
-                <div className="animate-spin rounded-full h-20 w-20 border-4 border-emerald-200 border-t-emerald-600 mx-auto"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <CreditCard className="h-8 w-8 text-emerald-600" />
-                </div>
-              </div>
-              <h2 className="mt-6 text-2xl font-bold text-gray-900">
-                Processing Payment
-              </h2>
-              <p className="mt-2 text-gray-600">
-                Securely confirming your payment...
-              </p>
-              <div className="mt-4 w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-emerald-600 h-2 rounded-full w-3/4 animate-pulse"></div>
-              </div>
-            </>
-          ) : updateSuccess ? (
-            <>
-              <div className="relative">
+              <div className="relative inline-block">
                 <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-100 rounded-full mb-4">
                   <CheckCircle className="h-12 w-12 text-emerald-600" />
                 </div>
@@ -419,11 +389,6 @@ const OrderPaymentSuccess = () => {
                 </>
               )}
             </button>
-
-            {/* <button className="inline-flex items-center px-6 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl">
-              <Truck className="h-5 w-5 mr-2" />
-              Track Order
-            </button> */}
           </div>
         </div>
 
@@ -731,10 +696,6 @@ const OrderPaymentSuccess = () => {
                   <ArrowRight className="h-4 w-4 mr-2" />
                   Continue Shopping
                 </Link>
-                {/* <button className="w-full flex items-center justify-center px-4 py-3 bg-blue-100 hover:bg-blue-200 rounded-xl transition-colors text-blue-700 font-medium">
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  View Order History
-                </button> */}
               </div>
             </div>
           </div>
