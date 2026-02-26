@@ -43,6 +43,9 @@ const CheckoutForm = () => {
   const [couponError, setCouponError] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
 
+  // Order submission/general error
+  const [orderError, setOrderError] = useState("");
+
   // Form validation
   const [errors, setErrors] = useState({});
 
@@ -180,12 +183,14 @@ const CheckoutForm = () => {
   const handleCouponCode = async () => {
     if (formData.couponCode.trim() === "") {
       setCouponError("Coupon code cannot be empty");
+      setOrderError("");
       setCouponData(null);
       return;
     }
 
     setCouponLoading(true);
     setCouponError("");
+    setOrderError("");
 
     try {
       const response = await axios.get(
@@ -212,6 +217,7 @@ const CheckoutForm = () => {
   const removeCoupon = () => {
     setCouponData(null);
     setCouponError("");
+    setOrderError("");
     setFormData((prev) => ({ ...prev, couponCode: "" }));
   };
 
@@ -251,6 +257,11 @@ const CheckoutForm = () => {
         ...prev,
         [name]: "",
       }));
+    }
+
+    // clear any top-level order errors when user interacts
+    if (orderError) {
+      setOrderError("");
     }
   };
 
@@ -319,8 +330,8 @@ const CheckoutForm = () => {
       });
 
       // Prepare order data according to backend schema
+      // build orderData and include user only when available (guest checkout support)
       const orderData = {
-        user: user?.id || user?._id,
         name: formData.fullName.trim(),
         phone: formData.phoneNumber.trim(),
         email: formData.email.trim(),
@@ -347,6 +358,9 @@ const CheckoutForm = () => {
         paymentMethod: formData.paymentMethod,
         notes: formData.notes.trim(),
       };
+      if (user?.id || user?._id) {
+        orderData.user = user?.id || user?._id;
+      }
 
       console.log("Final Order Data:", orderData);
 
@@ -439,7 +453,7 @@ const CheckoutForm = () => {
         errorMessage = error.response.data.message;
       }
 
-      setCouponError(errorMessage);
+      setOrderError(errorMessage);
 
       // Scroll to top to show error
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -466,6 +480,7 @@ const CheckoutForm = () => {
     setErrors({});
     setCouponData(null);
     setCouponError("");
+    setOrderError("");
     setCityKey(0);
     setZoneKey(0);
     setZoneList([]);
@@ -504,13 +519,13 @@ const CheckoutForm = () => {
           {/* Main Form */}
           <div className="col-span-12 order-2 lg:order-1 lg:col-span-8">
             <div className="bg-white pt-8 pb-12 px-6 shadow-md rounded-lg">
-              {/* Error Alert */}
-              {couponError && (
+              {/* Error Alert (coupon or order) */}
+              {(couponError || orderError) && (
                 <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
                   <FaExclamationTriangle className="text-red-500 mt-0.5" />
                   <div>
                     <h4 className="font-medium text-red-800">Error</h4>
-                    <p className="text-red-700 text-sm">{couponError}</p>
+                    <p className="text-red-700 text-sm">{orderError || couponError}</p>
                   </div>
                 </div>
               )}

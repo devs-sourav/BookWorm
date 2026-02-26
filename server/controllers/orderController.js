@@ -194,15 +194,16 @@ const enrichProductsData = async (products) => {
 };
 
 exports.createOrderController = catchAsync(async (req, res, next) => {
-  // Check if user ID is provided
-  if (!req.body.user) {
-    return next(new AppError("User ID is required to create an order", 400));
-  }
-
-  // Verify that user exists
-  const user = await User.findById(req.body.user);
-  if (!user) {
-    return next(new AppError("User not found", 404));
+  // determine user id from request body or authenticated user (guest allowed)
+  let userDoc = null;
+  const userId = req.body.user || req.user?.id || null;
+  if (userId) {
+    userDoc = await User.findById(userId);
+    if (!userDoc) {
+      return next(new AppError("User not found", 404));
+    }
+    // ensure body contains user field for later use if coming from auth
+    req.body.user = userId;
   }
 
   // Validate that products exist and is an array
@@ -253,9 +254,18 @@ exports.createOrderController = catchAsync(async (req, res, next) => {
     req.body.products
   );
 
-  // FIXED: Only set shipping cost to 0 if no shipping cost was provided AND there's a free shipping product
-  if (hasFreeShippingProduct && !req.body.shippingCost) {
-    req.body.shippingCost = 0;
+  // Determine shipping cost if it wasn't supplied by client
+  // Use order-level deliveryType to estimate default rates.
+  if (req.body.shippingCost == null) {
+    if (hasFreeShippingProduct && req.body.deliveryType !== "on_demand") {
+      req.body.shippingCost = 0;
+    } else if (req.body.deliveryType === "on_demand") {
+      // express delivery default
+      req.body.shippingCost = 160;
+    } else {
+      // normal delivery default
+      req.body.shippingCost = 80;
+    }
   }
 
   // If shipping cost is provided from backend, respect it regardless of free shipping
@@ -336,15 +346,15 @@ exports.createOrderController = catchAsync(async (req, res, next) => {
 exports.createOrderWithCouponController = catchAsync(async (req, res, next) => {
   const { coupon, products, user } = req.body;
 
-  // Check if user ID is provided
-  if (!user) {
-    return next(new AppError("User ID is required to create an order", 400));
-  }
-
-  // Verify that user exists
-  const userData = await User.findById(user);
-  if (!userData) {
-    return next(new AppError("User not found", 404));
+  // determine user id from request body or authenticated user (guest allowed)
+  let userData = null;
+  const userId = user || req.user?.id || null;
+  if (userId) {
+    userData = await User.findById(userId);
+    if (!userData) {
+      return next(new AppError("User not found", 404));
+    }
+    req.body.user = userId;
   }
 
   if (!coupon) {
@@ -408,6 +418,17 @@ exports.createOrderWithCouponController = catchAsync(async (req, res, next) => {
   const { enrichedProducts, hasFreeShippingProduct } = await enrichProductsData(
     products
   );
+
+  // Determine shipping cost if not provided by client
+  if (req.body.shippingCost == null) {
+    if (hasFreeShippingProduct && req.body.deliveryType !== "on_demand") {
+      req.body.shippingCost = 0;
+    } else if (req.body.deliveryType === "on_demand") {
+      req.body.shippingCost = 160;
+    } else {
+      req.body.shippingCost = 80;
+    }
+  }
 
   // Calculate the total product cost
   const productTotal = enrichedProducts.reduce((total, item) => {

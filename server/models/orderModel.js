@@ -3,11 +3,12 @@ const { Schema, model } = mongoose;
 
 const orderSchema = new Schema(
   {
-    // User reference to track who placed the order
+    // User reference to track who placed the order (optional for guest checkout)
     user: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "User is required"],
+      required: false,
+      default: null,
     },
     
     // Customer information (can be different from user account info)
