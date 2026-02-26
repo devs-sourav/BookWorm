@@ -30,19 +30,20 @@ router.post("/payment/success", handleSSLCommerzSuccess);
 router.get("/payment/success", (req, res, next) => {
   // copy query parameters into body so handler can use same logic
   req.body = { ...(req.query || {}) };
-  return handleSSLCommerzSuccess(req, res, next);
+  // call the handler but don't await - it handles all errors internally
+  handleSSLCommerzSuccess(req, res, next);
 });
 
 router.post("/payment/fail", handleSSLCommerzFail);
 router.get("/payment/fail", (req, res, next) => {
   req.body = { ...(req.query || {}) };
-  return handleSSLCommerzFail(req, res, next);
+  handleSSLCommerzFail(req, res, next);
 });
 
 router.post("/payment/cancel", handleSSLCommerzCancel);
 router.get("/payment/cancel", (req, res, next) => {
   req.body = { ...(req.query || {}) };
-  return handleSSLCommerzCancel(req, res, next);
+  handleSSLCommerzCancel(req, res, next);
 });
 router.post("/payment/sslcommerz/ipn", handleSSLCommerzIPN); // NEW: IPN endpoint
 router.post("/payment/validate", validateSSLCommerzTransaction); // NEW: Manual validation
