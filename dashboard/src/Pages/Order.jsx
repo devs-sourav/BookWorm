@@ -72,6 +72,7 @@ const Order = () => {
   const [isViewDrawerVisible, setIsViewDrawerVisible] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [initialFormValues, setInitialFormValues] = useState(null);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [orderStats, setOrderStats] = useState({
@@ -87,6 +88,7 @@ const Order = () => {
     todayOrders: 0,
   });
   const [form] = Form.useForm();
+  const [isUpdating, setIsUpdating] = useState(false);
 
   // Enhanced fetch orders with better error handling
   const fetchOrders = async () => {
@@ -172,12 +174,14 @@ const Order = () => {
   // Edit order
   const handleEdit = (record) => {
     setCurrentOrder(record);
-    form.setFieldsValue({
+    const formValues = {
       ...record,
       cityName: record.city?.cityName || "",
       zoneName: record.zone?.zoneName || "",
       areaName: record.area?.areaName || "",
-    });
+    };
+    setInitialFormValues(formValues);
+    form.setFieldsValue(formValues);
     setIsModalVisible(true);
   };
 
@@ -194,9 +198,28 @@ const Order = () => {
   };
 
   // Update order
+  // NOTE: the original implementation pointed at `/order/:id/status`, which
+  // goes through the `updateOrderStatusController` on the server.  that
+  // controller only allows a very small list of properties (orderStatus,
+  // paymentStatus, notes, adminNotes, trackingNumber, deliveryDate) and any
+  // other fields are stripped silently.  the form used in the modal exposes a
+  // lot more fields (name, phone, address, costs, etc), so admins were filling
+  // the form but nothing except the status would actually change.  calling the
+  // `/status` route gave the impression that "updating the order is not
+  // working".
+  //
+  // Two ways to fix this:
+  //   1. send only the allowed fields from the client, or
+  //   2. call the more permissive endpoint (`/with-stock`) which accepts the
+  //      whole payload and performs a normal `findByIdAndUpdate` (including the
+  //      extra address/cost fields).  we choose option 2 since the form already
+  //      contains those values and we don't need any stock logic here.
   const handleUpdate = async (values) => {
     try {
-      await axios.patch(`/order/${currentOrder?._id}/status`, values);
+      // always hit the `/with-stock` route; it behaves as a full update even if
+      // we aren't changing the products array
+      await axios.patch(`/order/${currentOrder?._id}/with-stock`, values);
+
       message.success("Order updated successfully");
       setIsModalVisible(false);
       form.resetFields();
@@ -1540,7 +1563,7 @@ const Order = () => {
                 {selectedOrder.products?.map((product, index) => (
                   <div
                     key={index}
-                    className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg"
+                    className="flex items-start space-x-3 p-3  rounded-lg"
                   >
                     {/* <Avatar
                       icon={<BookOutlined />}

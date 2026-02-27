@@ -27,7 +27,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // ✅ STEP 2: Payment gateway CORS bypass — before global cors()
 app.use("/api/v1/order/payment", (req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PATCH");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PATCH, PUT");
   res.header("Access-Control-Allow-Headers", "Content-Type");
   next();
 });

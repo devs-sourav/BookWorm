@@ -1477,6 +1477,11 @@ exports.updateProductQuantityController = catchAsync(async (req, res, next) => {
 
 // Simple order update without stock changes (for status updates only)
 exports.updateOrderStatusController = catchAsync(async (req, res, next) => {
+  // this helper endpoint is intentionally *narrow* – it's meant for rapid
+  // status/payment updates from the dashboard and from webhooks.  anything
+  // outside of the list below is silently ignored.  if you need to change
+  // customer details, order totals, address, etc. you must use the
+  // `/order/:id/with-stock` route (or expand the array here accordingly).
   const allowedUpdates = [
     "orderStatus",
     "paymentStatus",
@@ -1484,6 +1489,25 @@ exports.updateOrderStatusController = catchAsync(async (req, res, next) => {
     "adminNotes",
     "trackingNumber",
     "deliveryDate",
+    // added below so frontend updates won't be silently dropped
+    "name",
+    "phone",
+    "email",
+    "streetAddress",
+    "deliveryType",
+    "shippingCost",
+    "paymentMethod",
+    "coupon",
+    "subtotal",
+    "couponDiscount",
+    "totalCost",
+    // city/zone/area are stored as sub-documents; the dashboard currently only
+    // exposes the "Name" fields and those are disabled, so they're not
+    // propagated here.  to modify them properly you'd need to send the whole
+    // object (e.g. { city: { cityID, cityName } }).
+    // "city",
+    // "zone",
+    // "area",
   ];
   const updateData = {};
 

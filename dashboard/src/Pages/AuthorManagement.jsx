@@ -414,10 +414,10 @@ const AuthorManagement = () => {
         </div>
 
         {/* Enhanced Control Panel */}
-        <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
+        <div className=" backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
           <div className="flex flex-col lg:flex-row justify-between items-center space-y-4 lg:space-y-0 lg:space-x-6">
             {/* Search */}
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1 b max-w-md">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-blue-400" />
               </div>
@@ -426,7 +426,7 @@ const AuthorManagement = () => {
                 placeholder="Search authors by name or bio..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-12 py-3 border-0 rounded-xl bg-white/50 backdrop-blur-sm shadow-sm ring-1 ring-gray-300 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all duration-200"
+                className="block w-full bg-gray-800  pl-10 pr-12 py-3 border-0 rounded-xl  shadow-sm ring-1 ring-gray-300 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 transition-all duration-200"
               />
               {searchTerm && (
                 <button
@@ -533,7 +533,7 @@ const AuthorManagement = () => {
           <div className="text-center py-20">
             <div className="relative w-32 h-32 mx-auto mb-8">
               <div className="absolute inset-0   rounded-full opacity-50"></div>
-              <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center shadow-inner">
+              <div className="absolute inset-4  rounded-full flex items-center justify-center shadow-inner">
                 <User className="w-12 h-12 text-gray-400" />
               </div>
             </div>
@@ -636,7 +636,7 @@ const AuthorManagement = () => {
                           </span>
                         </div>
                         {author.createdAt && (
-                          <div className="flex items-center bg-blue-50 px-2 py-1 rounded-full">
+                          <div className="flex items-center  px-2 py-1 rounded-full">
                             <Calendar className="w-3 h-3 mr-1 text-blue-500" />
                             <span className="text-blue-600 font-medium">
                               {new Date(author.createdAt).toLocaleDateString()}
@@ -654,7 +654,7 @@ const AuthorManagement = () => {
                 {filteredAuthors.map((author, index) => (
                   <div
                     key={author._id}
-                    className="group bg-white/80 backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl border border-white/20 p-6 flex items-center space-x-6 transform hover:-translate-y-0.5 transition-all duration-300"
+                    className="group backdrop-blur-sm rounded-xl shadow-lg hover:shadow-xl border border-white/20 p-6 flex items-center space-x-6 transform hover:-translate-y-0.5 transition-all duration-300"
                     style={{
                       animationDelay: `${index * 30}ms`,
                     }}
